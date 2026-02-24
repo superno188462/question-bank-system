@@ -1,0 +1,37 @@
+# 🎯 快速选择指南
+
+## 根据你的身份选择：
+
+### 👨‍🏫 如果你是老师/管理员（要管理题目）
+→ 用 Web入口
+→ 命令: python start.py web
+→ 访问: http://localhost:8000
+
+### 👨‍🎓 如果你是学生（要手机刷题）
+→ 用 微信小程序入口
+→ 命令: python start.py wechat
+→ 地址: http://localhost:8002
+
+### 👨‍💻 如果你是开发者/AI爱好者
+→ 用 MCP入口
+→ 命令: python start.py mcp
+→ 地址: http://localhost:8001
+
+## 📁 对应目录：
+
+老师用 → web/
+学生用 → wechat/
+开发者用 → mcp/
+
+## 🔧 通用命令：
+
+初始化数据库: python start.py init
+运行测试: python start.py test
+查看状态: python start.py status
+
+## ❓ 还不确定？
+
+查看详细指南：
+- USER_GUIDE.md - 完整用户指南
+- ENTRY_CHOICE.md - 选择流程图
+- README.md - 项目总览

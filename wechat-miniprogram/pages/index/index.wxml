@@ -1,0 +1,84 @@
+<!-- pages/index/index.wxml -->
+
+<view class="container">
+  <!-- 搜索框 -->
+  <view class="search-bar" bindtap="onSearch">
+    <view class="search-input">
+      <text class="search-icon">🔍</text>
+      <text class="search-text">搜索题目...</text>
+    </view>
+  </view>
+
+  <!-- 轮播图 -->
+  <swiper class="banner-swiper" indicator-dots autoplay interval="3000" duration="500">
+    <block wx:for="{{banners}}" wx:key="id">
+      <swiper-item>
+        <view class="banner-item">
+          <image src="{{item.image}}" mode="aspectFill" class="banner-image" />
+          <view class="banner-title">{{item.title}}</view>
+        </view>
+      </swiper-item>
+    </block>
+  </swiper>
+
+  <!-- 功能模块 -->
+  <view class="features-section">
+    <view class="section-title">功能模块</view>
+    <view class="features-grid">
+      <block wx:for="{{features}}" wx:key="id">
+        <view class="feature-item" bindtap="navigateToFeature" data-url="{{item.url}}">
+          <view class="feature-icon">{{item.icon}}</view>
+          <view class="feature-title">{{item.title}}</view>
+          <view class="feature-desc">{{item.desc}}</view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 热门题目 -->
+  <view class="hot-questions-section">
+    <view class="section-header">
+      <view class="section-title">热门题目</view>
+      <view class="section-more" bindtap="onSearch">查看更多 ></view>
+    </view>
+    
+    <view class="questions-list">
+      <block wx:for="{{hotQuestions}}" wx:key="id">
+        <view class="question-item" bindtap="viewQuestionDetail" data-id="{{item.id}}">
+          <view class="question-content">
+            <view class="question-title">{{item.title}}</view>
+            <view class="question-meta">
+              <text class="meta-item">{{item.category}}</text>
+              <text class="meta-item">{{item.difficulty}}</text>
+              <text class="meta-item">{{item.view_count}} 浏览</text>
+            </view>
+          </view>
+          <view class="question-arrow">›</view>
+        </view>
+      </block>
+      
+      <view wx:if="{{hotQuestions.length === 0 && !loading}}" class="empty-state">
+        <text class="empty-icon">📚</text>
+        <text class="empty-text">暂无热门题目</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 快速对话入口 -->
+  <view class="quick-chat-section">
+    <view class="chat-card" bindtap="startChat">
+      <view class="chat-icon">💬</view>
+      <view class="chat-content">
+        <view class="chat-title">智能问答助手</view>
+        <view class="chat-desc">有任何问题都可以问我</view>
+      </view>
+      <view class="chat-arrow">›</view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+</view>

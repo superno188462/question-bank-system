@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>题库系统 - 简单前端</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 20px auto; padding: 20px; }
+        .section { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        input, textarea, select { width: 100%; padding: 8px; margin: 5px 0; }
+        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .question { background: white; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50; }
+        .meta { font-size: 0.9em; color: #666; margin-top: 5px; }
+        .success { background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; }
+        .error { background: #f8d7da; color: #721c24; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>📚 题库系统 - 简单前端</h1>
+    
+    <div class="section">
+        <h2>添加题目</h2>
+        <textarea id="content" placeholder="题目内容..." rows="3"></textarea><br>
+        <input id="category" placeholder="分类" value="未分类"><br>
+        <select id="difficulty">
+            <option value="easy">简单</option>
+            <option value="medium" selected>中等</option>
+            <option value="hard">困难</option>
+        </select><br>
+        <input id="tags" placeholder="标签（逗号分隔）"><br>
+        <button onclick="addQuestion()">添加题目</button>
+        <div id="addResult"></div>
+    </div>
+    
+    <div class="section">
+        <h2>搜索题目</h2>
+        <input id="search" placeholder="搜索关键词" onkeypress="if(event.key=='Enter')searchQuestions()">
+        <button onclick="searchQuestions()">搜索</button>
+        <div id="searchResults"></div>
+    </div>
+    
+    <div class="section">
+        <h2>所有题目</h2>
+        <button onclick="loadQuestions()">刷新</button>
+        <div id="questions"></div>
+    </div>
+    
+    <script>
+        const API = 'http://localhost:8000';
+        
+        function showMsg(element, msg, isError = false) {
+            element.innerHTML = `<div class="${isError ? 'error' : 'success'}">${msg}</div>`;
+            setTimeout(() => element.innerHTML = '', 3000);
+        }
+        
+        async function addQuestion() {
+            const content = document.getElementById('content').value;
+            if (!content) return alert('请输入题目内容');
+            
+            const form = new FormData();
+            form.append('content', content);
+            form.append('category', document.getElementById('category').value);
+            form.append('tags', document.getElementById('tags').value);
+            
+            try {
+                const res = await fetch(API + '/questions/text/', { method: 'POST', body: form });
+                const data = await res.json();
+                showMsg(document.getElementById('addResult'), 
+                    data.status === 'success' ? '✅ 添加成功！' : '❌ 添加失败');
+                if (data.status === 'success') {
+                    document.getElementById('content').value = '';
+                    loadQuestions();
+                }
+            } catch (e) {
+                showMsg(document.getElementById('addResult'), '❌ 网络错误: ' + e.message, true);
+            }
+        }
+        
+        async function searchQuestions() {
+            const query = document.getElementById('search').value;
+            if (!query) return;
+            
+            const results = document.getElementById('searchResults');
+            results.innerHTML = '搜索中...';
+            
+            try {
+                const res = await fetch(API + '/questions/?query=' + encodeURIComponent(query));
+                const data = await res.json();
+                
+                if (data.questions && data.questions.length) {
+                    results.innerHTML = data.questions.map(q => `
+                        <div class="question">
+                            <div>${q.content}</div>
+                            <div class="meta">${q.category} | ${q.difficulty}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    results.innerHTML = '未找到相关题目';
+                }
+            } catch (e) {
+                results.innerHTML = '搜索失败: ' + e.message;
+            }
+        }
+        
+        async function loadQuestions() {
+            const container = document.getElementById('questions');
+            container.innerHTML = '加载中...';
+            
+            try {
+                const res = await fetch(API + '/questions/?limit=20');
+                const data = await res.json();
+                
+                if (data.questions && data.questions.length) {
+                    container.innerHTML = data.questions.map(q => `
+                        <div class="question">
+                            <div>${q.content}</div>
+                            <div class="meta">
+                                ${q.category} | ${q.difficulty} 
+                                ${q.tags && q.tags.length ? '| 标签: ' + q.tags.join(', ') : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '暂无题目';
+                }
+            } catch (e) {
+                container.innerHTML = '加载失败: ' + e.message;
+            }
+        }
+        
+        // 页面加载时自动加载题目
+        window.onload = loadQuestions;
+    </script>
+</body>
+</html>

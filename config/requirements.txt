@@ -1,0 +1,6 @@
+# 项目依赖 - 使用 uv 管理
+# 生成命令: uv pip compile pyproject.toml -o requirements.txt
+
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
