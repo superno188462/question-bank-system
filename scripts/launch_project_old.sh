@@ -1,5 +1,5 @@
 #!/bin/bash
-# 项目快速启动脚本（uv版本）- 使用uv虚拟环境
+# 项目快速启动脚本 - 使用项目自带的启动机制
 
 set -e
 
@@ -11,6 +11,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 项目路径 - 使用脚本所在目录的父目录
+# 禁止硬编码绝对路径！
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_PATH="$(dirname "$SCRIPT_DIR")"
 
@@ -19,35 +20,6 @@ print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
-
-# 函数：检查并设置Python命令
-setup_python_command() {
-    # 优先使用uv
-    if command -v uv &> /dev/null; then
-        PYTHON_CMD="uv run python"
-        UV_AVAILABLE=true
-    elif [[ -f ".venv/bin/python" ]]; then
-        PYTHON_CMD=".venv/bin/python"
-        UV_AVAILABLE=false
-    elif [[ -f "venv/bin/python" ]]; then
-        PYTHON_CMD="venv/bin/python"
-        UV_AVAILABLE=false
-    else
-        # 检查系统Python
-        if command -v python &> /dev/null; then
-            PYTHON_CMD="python"
-        elif command -v python3 &> /dev/null; then
-            PYTHON_CMD="python3"
-        else
-            print_error "未找到Python命令，请先安装Python 3.8+"
-            exit 1
-        fi
-        UV_AVAILABLE=false
-    fi
-    
-    export PYTHON_CMD
-    export UV_AVAILABLE
-}
 
 # 函数：检查项目是否存在
 check_project() {
@@ -72,33 +44,30 @@ use_project_launcher() {
     
     cd "$PROJECT_PATH" || exit 1
     
-    # 设置Python命令
-    setup_python_command
-    
     # 检查项目启动脚本
     if [[ -f "start.py" ]]; then
         print_info "找到项目启动脚本: start.py"
         echo ""
-        print_info "启动命令: $PYTHON_CMD start.py"
+        print_info "启动命令: python start.py"
         echo ""
         
         # 显示启动选项
-        $PYTHON_CMD start.py --help 2>/dev/null || {
+        python start.py --help 2>/dev/null || {
             print_info "直接启动项目..."
-            $PYTHON_CMD start.py
+            python start.py
         }
     elif [[ -f "scripts/launch_all.py" ]]; then
         print_info "找到项目启动脚本: scripts/launch_all.py"
         echo ""
-        print_info "启动命令: $PYTHON_CMD scripts/launch_all.py"
+        print_info "启动命令: python scripts/launch_all.py"
         echo ""
-        $PYTHON_CMD scripts/launch_all.py
+        python scripts/launch_all.py
     else
         print_error "未找到项目启动脚本"
         echo "可用的启动方式:"
-        echo "  1. $PYTHON_CMD web/main.py     # 启动Web服务"
-        echo "  2. $PYTHON_CMD wechat/main.py  # 启动微信API"
-        echo "  3. $PYTHON_CMD mcp_server/main.py # 启动MCP服务"
+        echo "  1. python web/main.py     # 启动Web服务"
+        echo "  2. python wechat/main.py  # 启动微信API"
+        echo "  3. python mcp_server/main.py # 启动MCP服务"
         exit 1
     fi
 }
@@ -109,16 +78,23 @@ start_all_services() {
     
     check_project
     
-    # 设置Python命令
-    setup_python_command
+    # 检查Python
+    if command -v python &> /dev/null; then
+        PYTHON_CMD="python"
+    elif command -v python3 &> /dev/null; then
+        PYTHON_CMD="python3"
+    else
+        print_error "未找到Python命令"
+        exit 1
+    fi
     
     # 检查依赖
     print_info "检查Python依赖..."
-    if [[ ! -d "venv" ]] && [[ ! -d ".venv" ]] && [[ "$UV_AVAILABLE" == false ]]; then
+    if [[ ! -d "venv" ]] && [[ ! -d ".venv" ]]; then
         print_warning "未找到虚拟环境，尝试安装依赖..."
         
         if [[ -f "config/requirements.txt" ]]; then
-            if [[ "$UV_AVAILABLE" == true ]]; then
+            if command -v uv &> /dev/null; then
                 print_info "使用uv安装依赖..."
                 uv pip install -r config/requirements.txt
             else
@@ -135,7 +111,7 @@ start_all_services() {
         print_info "初始化数据库..."
         mkdir -p data
         $PYTHON_CMD -c "
-from core.database.connection import db
+from core.database.connection import get_db
 from core.database.migrations import init_database
 import asyncio
 
@@ -275,7 +251,7 @@ stop_services() {
 
 # 函数：显示帮助
 show_help() {
-    echo "项目快速启动脚本（uv版本）"
+    echo "项目快速启动脚本"
     echo "用法: $0 [命令]"
     echo ""
     echo "命令:"
@@ -292,11 +268,6 @@ show_help() {
     echo "  $0 status    # 查看服务状态"
     echo "  $0 stop      # 停止所有服务"
     echo "  $0 project   # 使用项目自带的启动方式"
-    echo ""
-    echo "环境要求:"
-    echo "  - 优先使用uv包管理器 (https://astral.sh/uv)"
-    echo "  - 或已创建虚拟环境 (.venv 或 venv)"
-    echo "  - 或系统Python 3.8+"
     echo ""
     echo "项目路径: $PROJECT_PATH"
     echo "GitHub仓库: https://github.com/superno188462/question-bank-system"
@@ -362,9 +333,8 @@ show_logs() {
 
 # 主程序
 main() {
-    print_info "🚀 项目快速启动脚本（uv版本）"
+    print_info "🚀 项目快速启动脚本"
     echo "项目: 题库管理系统"
-    echo "使用uv虚拟环境运行Python项目"
     echo "路径: $PROJECT_PATH"
     echo ""
     

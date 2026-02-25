@@ -1,6 +1,7 @@
 #!/bin/bash
-# 题库系统快速启动脚本（uv版本）
-# 使用uv虚拟环境运行Python项目
+# 题库系统快速启动脚本（修复版）
+# 一键配置环境、安装依赖、启动前后端服务
+# 禁止硬编码绝对路径，使用相对路径或环境变量
 
 set -e
 
@@ -12,6 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 项目路径 - 使用脚本所在目录的父目录
+# 禁止硬编码绝对路径！
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_PATH="$(dirname "$SCRIPT_DIR")"
 
@@ -21,47 +23,75 @@ print_success() { echo -e "${GREEN}✅ $1${NC}"; }
 print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 print_error() { echo -e "${RED}❌ $1${NC}"; }
 
-# 函数：检查并设置Python命令（使用uv优先）
-setup_python_command() {
+# 函数：检查命令是否存在
+check_command() {
+    if ! command -v "$1" &> /dev/null; then
+        print_error "命令 '$1' 未找到，请先安装"
+        return 1
+    fi
+    return 0
+}
+
+# 函数：检查Python环境
+check_python() {
     print_info "检查Python环境..."
     
-    # 优先使用uv
-    if command -v uv &> /dev/null; then
-        print_success "找到uv包管理器"
-        PYTHON_CMD="uv run python"
-        UV_AVAILABLE=true
-    elif [[ -f ".venv/bin/python" ]]; then
-        print_success "找到虚拟环境: .venv/bin/python"
-        PYTHON_CMD=".venv/bin/python"
-        UV_AVAILABLE=false
-    elif [[ -f "venv/bin/python" ]]; then
-        print_success "找到虚拟环境: venv/bin/python"
-        PYTHON_CMD="venv/bin/python"
-        UV_AVAILABLE=false
+    if command -v python &> /dev/null; then
+        PYTHON_CMD="python"
+    elif command -v python3 &> /dev/null; then
+        PYTHON_CMD="python3"
     else
-        print_warning "未找到uv或虚拟环境，将使用系统Python"
-        
-        # 检查系统Python
-        if command -v python &> /dev/null; then
-            PYTHON_CMD="python"
-        elif command -v python3 &> /dev/null; then
-            PYTHON_CMD="python3"
-        else
-            print_error "未找到Python命令，请先安装Python 3.8+"
-            exit 1
-        fi
-        
-        PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
-        print_warning "使用系统Python: $PYTHON_CMD ($PYTHON_VERSION)"
-        print_warning "建议安装uv或创建虚拟环境：uv venv 或 python -m venv .venv"
-        UV_AVAILABLE=false
+        print_error "未找到Python命令，请先安装Python 3.8+"
+        exit 1
+    fi
+    
+    PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+    print_success "找到Python: $PYTHON_CMD ($PYTHON_VERSION)"
+    
+    # 检查Python版本
+    MAJOR_VERSION=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+    MINOR_VERSION=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+    
+    if [[ "$MAJOR_VERSION" -lt 3 ]] || [[ "$MAJOR_VERSION" -eq 3 && "$MINOR_VERSION" -lt 8 ]]; then
+        print_warning "Python版本 $PYTHON_VERSION 可能过低，建议使用Python 3.8+"
     fi
     
     export PYTHON_CMD
-    export UV_AVAILABLE
 }
 
-# 函数：安装依赖
+# 函数：检查uv（快速Python包管理器）
+check_uv() {
+    print_info "检查uv包管理器..."
+    
+    if command -v uv &> /dev/null; then
+        print_success "找到uv包管理器"
+        UV_AVAILABLE=true
+    else
+        print_warning "未找到uv，将使用pip（建议安装uv以获得更快速度）"
+        UV_AVAILABLE=false
+    fi
+}
+
+# 函数：安装uv（可选）
+install_uv() {
+    if [[ "$UV_AVAILABLE" == false ]]; then
+        print_info "安装uv包管理器..."
+        
+        read -p "是否安装uv？(y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            if command -v uv &> /dev/null; then
+                print_success "uv安装成功"
+                UV_AVAILABLE=true
+            else
+                print_warning "uv安装失败，将继续使用pip"
+            fi
+        fi
+    fi
+}
+
+# 函数：安装Python依赖
 install_dependencies() {
     print_info "安装Python依赖..."
     
@@ -79,14 +109,8 @@ install_dependencies() {
     if [[ "$UV_AVAILABLE" == true ]]; then
         print_info "使用uv安装依赖（极速）..."
         uv pip install -r config/requirements.txt
-    elif [[ -f ".venv/bin/pip" ]]; then
-        print_info "使用虚拟环境pip安装依赖..."
-        .venv/bin/pip install -r config/requirements.txt
-    elif [[ -f "venv/bin/pip" ]]; then
-        print_info "使用虚拟环境pip安装依赖..."
-        venv/bin/pip install -r config/requirements.txt
     else
-        print_warning "使用系统pip安装依赖（可能污染全局环境）..."
+        print_info "使用pip安装依赖..."
         $PYTHON_CMD -m pip install --upgrade pip
         $PYTHON_CMD -m pip install -r config/requirements.txt
     fi
@@ -134,6 +158,48 @@ os.makedirs('data', exist_ok=True)
 # 创建表
 create_tables()
 print('数据库初始化完成')
+"
+    
+    # 添加示例数据
+    print_info "添加示例数据..."
+    $PYTHON_CMD -c "
+import sys
+import os
+import asyncio
+sys.path.insert(0, os.getcwd())
+
+from core.database.connection import db
+from core.database.repositories import QuestionRepository
+
+async def add_sample_data():
+    # 测试数据库连接
+    conn = db.get_connection()
+    
+    # 添加示例题目
+    sample_questions = [
+        {
+            'content': 'Python中如何定义一个函数？',
+            'options': ['def function_name():', 'function function_name():', 'def function_name:', 'func function_name():'],
+            'answer': 'def function_name():',
+            'explanation': 'Python使用def关键字定义函数',
+            'difficulty': 'easy',
+            'tags': ['python', 'function', 'basic']
+        },
+        {
+            'content': '下列哪个不是Python的数据类型？',
+            'options': ['int', 'string', 'float', 'char'],
+            'answer': 'char',
+            'explanation': 'Python没有单独的char类型，字符是长度为1的字符串',
+            'difficulty': 'easy',
+            'tags': ['python', 'data-types']
+        }
+    ]
+    
+    # 这里需要根据实际的数据模型调整
+    print(f'示例数据已准备，共 {len(sample_questions)} 个题目')
+    print('注意：实际添加需要根据数据模型调整代码')
+
+asyncio.run(add_sample_data())
 "
     
     print_success "数据库初始化完成"
@@ -220,7 +286,7 @@ start_mcp_service() {
     
     # 启动MCP服务（后台运行）
     print_info "启动MCP协议服务..."
-    $PYTHON_CMD mcp_server/server.py &
+    $PYTHON_CMD mcp_server/main.py &
     MCP_PID=$!
     
     # 等待服务启动
@@ -299,7 +365,7 @@ stop_services() {
 
 # 函数：显示帮助
 show_help() {
-    echo "题库系统快速启动脚本（uv版本）"
+    echo "题库系统快速启动脚本（修复版）"
     echo "用法: $0 [命令]"
     echo ""
     echo "命令:"
@@ -320,46 +386,38 @@ show_help() {
     echo "  $0 start     # 只启动服务（假设依赖已安装）"
     echo "  $0 status    # 查看服务状态"
     echo ""
-    echo "环境要求:"
-    echo "  - 优先使用uv包管理器 (https://astral.sh/uv)"
-    echo "  - 或已创建虚拟环境 (.venv 或 venv)"
-    echo "  - 或系统Python 3.8+"
-    echo ""
     echo "项目路径: $PROJECT_PATH"
+    echo "脚本路径: $SCRIPT_DIR"
 }
 
 # 主程序
 main() {
-    print_info "📦 题库系统快速启动脚本（uv版本）"
-    echo "使用uv虚拟环境运行Python项目"
+    print_info "📦 题库系统快速启动脚本（修复版）"
     echo "项目路径: $PROJECT_PATH"
+    echo "脚本路径: $SCRIPT_DIR"
     echo ""
-    
-    # 设置Python命令
-    setup_python_command
     
     case "${1:-help}" in
         "setup")
+            check_python
+            check_uv
+            install_uv
             install_dependencies
             init_database
             ;;
         "start")
-            install_dependencies
             start_web_service
             start_wechat_service
             start_mcp_service
             show_services_status
             ;;
         "web")
-            install_dependencies
             start_web_service
             ;;
         "wechat")
-            install_dependencies
             start_wechat_service
             ;;
         "mcp")
-            install_dependencies
             start_mcp_service
             ;;
         "status")
@@ -371,13 +429,15 @@ main() {
         "restart")
             stop_services
             sleep 2
-            install_dependencies
             start_web_service
             start_wechat_service
             start_mcp_service
             show_services_status
             ;;
         "full")
+            check_python
+            check_uv
+            install_uv
             install_dependencies
             init_database
             start_web_service

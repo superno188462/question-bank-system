@@ -150,17 +150,36 @@ validate_basic_functionality() {
     local errors=0
     
     # 1. 检查Python版本
-    if command -v python3 &> /dev/null; then
+    # 优先使用uv，其次虚拟环境，最后系统Python
+    PYTHON_CMD=""
+    if command -v uv &> /dev/null; then
+        PYTHON_CMD="uv run python"
+        print_success "Python环境: uv虚拟环境"
+    elif [[ -f ".venv/bin/python" ]]; then
+        PYTHON_CMD=".venv/bin/python"
+        print_success "Python环境: .venv虚拟环境"
+    elif [[ -f "venv/bin/python" ]]; then
+        PYTHON_CMD="venv/bin/python"
+        print_success "Python环境: venv虚拟环境"
+    elif command -v python3 &> /dev/null; then
+        PYTHON_CMD="python3"
         python_version=$(python3 --version 2>&1 | awk '{print $2}')
-        print_success "Python版本: $python_version"
+        print_warning "Python环境: 系统Python ($python_version)"
+        print_warning "建议使用uv或创建虚拟环境"
     else
-        print_error "未找到Python3"
+        print_error "未找到Python环境"
         errors=$((errors + 1))
     fi
     
     # 2. 检查数据库连接
     print_info "测试数据库连接..."
-    python3 -c "
+    if [[ -z "$PYTHON_CMD" ]]; then
+        print_error "Python命令未设置"
+        errors=$((errors + 1))
+        return 1
+    fi
+    
+    $PYTHON_CMD -c "
 import sys
 import os
 sys.path.insert(0, os.getcwd())
