@@ -471,3 +471,62 @@ python test_database.py
 
 ### 详细总结
 查看完整项目总结：[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
+
+
+## 💻 Windows用户特别说明
+
+### 方法1: 使用PowerShell脚本（推荐）
+```powershell
+# 以管理员身份运行PowerShell
+# 设置执行策略（仅需一次）
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# 运行启动脚本
+.un.ps1 start
+
+# 其他命令
+.un.ps1 status    # 查看状态
+.un.ps1 stop      # 停止服务
+.un.ps1 setup     # 安装依赖
+```
+
+### 方法2: 使用批处理脚本
+```batch
+# 双击运行或命令行执行
+run.bat
+```
+
+### 方法3: 手动安装（通用）
+```batch
+# 1. 安装Python 3.8+（安装时勾选"Add Python to PATH"）
+# 2. 安装uv包管理器（可选但推荐）
+#    pip install uv
+# 3. 安装项目依赖
+python -m pip install -r configequirements.txt
+# 4. 启动服务
+python web\main.py
+```
+
+### Windows常见问题解决
+1. **ModuleNotFoundError: No module named 'fastapi'**
+   ```batch
+   # 确保依赖已安装
+   python -m pip install -r configequirements.txt
+   ```
+
+2. **权限问题**
+   ```powershell
+   # 以管理员身份运行PowerShell
+   # 或使用虚拟环境
+   python -m venv .venv
+   .venv\Scriptsctivate
+   pip install -r configequirements.txt
+   ```
+
+3. **端口占用**
+   ```batch
+   # 查看占用8000端口的进程
+   netstat -ano | findstr :8000
+   # 停止进程（替换PID）
+   taskkill /PID <PID> /F
+   ```
