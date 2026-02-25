@@ -150,7 +150,7 @@ start_web() {
     echo $WEB_PID > .web_pid
     
     # 等待启动
-    sleep 3
+    sleep 5
     
     # 检查是否启动成功
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
@@ -160,6 +160,8 @@ start_web() {
         echo "  🔧 PID: $WEB_PID"
     else
         print_error "Web服务启动失败"
+        echo "  尝试手动检查: curl http://localhost:8000/health"
+        echo "  查看日志: tail -f web.log"
         return 1
     fi
 }

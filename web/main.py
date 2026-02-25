@@ -73,10 +73,6 @@ def create_web_app() -> FastAPI:
 # 创建Web应用实例
 app = create_web_app()
 
-
-# 创建应用实例
-app = create_web_app()
-
 if __name__ == "__main__":
     import uvicorn
     
@@ -86,7 +82,7 @@ if __name__ == "__main__":
     print(f"🌐 前端界面: http://{settings.HOST}:{settings.PORT}/static/index.html")
     
     uvicorn.run(
-        app,
+        "web.main:app",  # 改为导入字符串形式
         host=settings.HOST,
         port=settings.PORT,
         reload=settings.DEBUG,
