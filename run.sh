@@ -24,8 +24,26 @@ setup_python_command() {
     # 优先使用uv
     if command -v uv &> /dev/null; then
         print_success "找到uv包管理器"
-        PYTHON_CMD="uv run python"
-        UV_AVAILABLE=true
+        
+        # 检查uv虚拟环境是否存在
+        if [[ -d ".venv" ]]; then
+            print_success "找到uv虚拟环境: .venv"
+            PYTHON_CMD="uv run python"
+            UV_AVAILABLE=true
+        else
+            print_warning "未找到uv虚拟环境，将自动创建..."
+            uv venv
+            if [[ -d ".venv" ]]; then
+                print_success "uv虚拟环境创建成功: .venv"
+                PYTHON_CMD="uv run python"
+                UV_AVAILABLE=true
+            else
+                print_error "uv虚拟环境创建失败"
+                print_info "尝试使用--system参数安装到系统..."
+                PYTHON_CMD="uv run --system python"
+                UV_AVAILABLE=true
+            fi
+        fi
     elif [[ -f ".venv/bin/python" ]]; then
         print_success "找到虚拟环境: .venv/bin/python"
         PYTHON_CMD=".venv/bin/python"
@@ -63,7 +81,26 @@ install_dependencies() {
     
     if [[ "$UV_AVAILABLE" == true ]]; then
         print_info "使用uv安装/更新依赖..."
-        uv pip install -r config/requirements.txt
+        
+        # 检查是否使用--system参数
+        if [[ "$USE_SYSTEM" == "true" ]]; then
+            print_warning "使用--system参数，将安装到系统Python"
+            uv pip install --system -r config/requirements.txt
+        else
+            # 检查虚拟环境是否存在
+            if [[ -d ".venv" ]]; then
+                uv pip install -r config/requirements.txt
+            else
+                print_warning "虚拟环境不存在，尝试创建..."
+                uv venv
+                if [[ -d ".venv" ]]; then
+                    uv pip install -r config/requirements.txt
+                else
+                    print_error "虚拟环境创建失败，使用--system参数"
+                    uv pip install --system -r config/requirements.txt
+                fi
+            fi
+        fi
     elif [[ -f ".venv/bin/pip" ]]; then
         print_info "使用虚拟环境pip安装依赖..."
         .venv/bin/pip install -r config/requirements.txt
@@ -264,7 +301,7 @@ stop_services() {
 # 函数：显示帮助
 show_help() {
     echo "根目录一键运行脚本"
-    echo "用法: $0 [命令]"
+    echo "用法: $0 [命令] [选项]"
     echo ""
     echo "命令:"
     echo "  start        启动所有服务"
@@ -277,16 +314,20 @@ show_help() {
     echo "  setup        安装依赖和初始化"
     echo "  help         显示此帮助信息"
     echo ""
+    echo "选项:"
+    echo "  --system     使用系统Python安装依赖（不创建虚拟环境）"
+    echo ""
     echo "示例:"
-    echo "  $0 start     # 一键启动所有服务"
-    echo "  $0 status    # 查看服务状态"
-    echo "  $0 stop      # 停止所有服务"
-    echo "  $0 setup     # 安装依赖"
+    echo "  $0 start              # 一键启动所有服务（使用虚拟环境）"
+    echo "  $0 web --system       # 启动Web服务（使用系统Python）"
+    echo "  $0 status             # 查看服务状态"
+    echo "  $0 stop               # 停止所有服务"
+    echo "  $0 setup --system     # 安装依赖到系统Python"
     echo ""
     echo "环境要求:"
     echo "  - Python 3.8+"
     echo "  - 推荐使用uv包管理器 (https://astral.sh/uv)"
-    echo "  - 或已创建虚拟环境 (.venv 或 venv)"
+    echo "  - 默认创建.venv虚拟环境，使用--system跳过"
     echo ""
     echo "访问地址:"
     echo "  Web管理界面: http://localhost:8000"
@@ -352,10 +393,31 @@ main() {
     echo "使用uv虚拟环境运行Python项目"
     echo ""
     
+    # 解析参数
+    USE_SYSTEM="false"
+    COMMAND="help"
+    
+    # 解析参数
+    for arg in "$@"; do
+        case "$arg" in
+            --system)
+                USE_SYSTEM="true"
+                ;;
+            start|web|wechat|mcp|status|stop|restart|setup|help)
+                COMMAND="$arg"
+                ;;
+            *)
+                # 忽略其他参数
+                ;;
+        esac
+    done
+    
+    export USE_SYSTEM
+    
     # 设置Python命令
     setup_python_command
     
-    case "${1:-help}" in
+    case "$COMMAND" in
         "start")
             install_dependencies
             start_web
