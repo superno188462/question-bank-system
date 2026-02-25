@@ -1,6 +1,5 @@
 #!/bin/bash
-# 根目录一键运行脚本
-# 使用uv虚拟环境运行Python项目
+# 题库系统一键运行脚本
 
 set -e
 
@@ -29,33 +28,25 @@ setup_python_command() {
         if [[ -d ".venv" ]]; then
             print_success "找到uv虚拟环境: .venv"
             PYTHON_CMD="uv run python"
-            UV_AVAILABLE=true
         else
             print_warning "未找到uv虚拟环境，将自动创建并安装依赖..."
             uv venv
             if [[ -d ".venv" ]]; then
                 print_success "uv虚拟环境创建成功: .venv"
                 PYTHON_CMD="uv run python"
-                UV_AVAILABLE=true
                 
-                # 关键修复：创建虚拟环境后立即安装依赖
-                print_info "在新创建的虚拟环境中安装依赖..."
+                # 安装依赖
+                print_info "安装依赖..."
                 uv pip install -r config/requirements.txt
             else
                 print_error "uv虚拟环境创建失败"
                 print_info "尝试使用--system参数安装到系统..."
                 PYTHON_CMD="uv run --system python"
-                UV_AVAILABLE=true
             fi
         fi
     elif [[ -f ".venv/bin/python" ]]; then
         print_success "找到虚拟环境: .venv/bin/python"
         PYTHON_CMD=".venv/bin/python"
-        UV_AVAILABLE=false
-    elif [[ -f "venv/bin/python" ]]; then
-        print_success "找到虚拟环境: venv/bin/python"
-        PYTHON_CMD="venv/bin/python"
-        UV_AVAILABLE=false
     else
         print_warning "未找到uv或虚拟环境，将使用系统Python"
         
@@ -72,61 +63,22 @@ setup_python_command() {
         PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
         print_warning "使用系统Python: $PYTHON_CMD ($PYTHON_VERSION)"
         print_warning "建议安装uv或创建虚拟环境：uv venv 或 python -m venv .venv"
-        UV_AVAILABLE=false
     fi
     
     export PYTHON_CMD
-    export UV_AVAILABLE
 }
 
-# 函数：安装依赖（如果需要）
+# 函数：安装依赖
 install_dependencies() {
     print_info "检查依赖..."
     
-    if [[ "$UV_AVAILABLE" == true ]]; then
-        print_info "使用uv安装/更新依赖..."
-        
-        # 检查是否使用--system参数
-        if [[ "$USE_SYSTEM" == "true" ]]; then
-            print_warning "使用--system参数，将安装到系统Python"
-            print_warning "注意：可能需要sudo权限"
-            
-            # 尝试安装，如果失败给出提示
-            if uv pip install --system -r config/requirements.txt 2>/dev/null; then
-                print_success "依赖安装成功（系统Python）"
-            else
-                print_error "系统Python安装失败，可能需要sudo权限"
-                print_info "请尝试：sudo uv pip install --system -r config/requirements.txt"
-                print_info "或使用虚拟环境（推荐）：删除--system参数"
-                return 1
-            fi
-        else
-            # 检查虚拟环境是否存在
-            if [[ -d ".venv" ]]; then
-                print_info "在现有虚拟环境中安装依赖..."
-                uv pip install -r config/requirements.txt
-            else
-                print_warning "虚拟环境不存在，创建并安装依赖..."
-                uv venv
-                if [[ -d ".venv" ]]; then
-                    print_success "虚拟环境创建成功"
-                    print_info "安装依赖到新虚拟环境..."
-                    uv pip install -r config/requirements.txt
-                else
-                    print_error "虚拟环境创建失败，使用--system参数"
-                    uv pip install --system -r config/requirements.txt
-                fi
-            fi
+    if [[ -d ".venv" ]]; then
+        if command -v uv &> /dev/null; then
+            uv pip install -r config/requirements.txt
+        elif [[ -f ".venv/bin/pip" ]]; then
+            .venv/bin/pip install -r config/requirements.txt
         fi
-    elif [[ -f ".venv/bin/pip" ]]; then
-        print_info "使用虚拟环境pip安装依赖..."
-        .venv/bin/pip install -r config/requirements.txt
-    elif [[ -f "venv/bin/pip" ]]; then
-        print_info "使用虚拟环境pip安装依赖..."
-        venv/bin/pip install -r config/requirements.txt
     else
-        print_warning "未找到虚拟环境，将使用系统pip安装依赖（可能污染全局环境）"
-        $PYTHON_CMD -m pip install --upgrade pip
         $PYTHON_CMD -m pip install -r config/requirements.txt
     fi
     
@@ -150,18 +102,15 @@ start_web() {
     echo $WEB_PID > .web_pid
     
     # 等待启动
-    sleep 5
+    sleep 3
     
     # 检查是否启动成功
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
         print_success "Web服务启动成功"
         echo "  🌐 管理界面: http://localhost:8000"
         echo "  📚 API文档: http://localhost:8000/docs"
-        echo "  🔧 PID: $WEB_PID"
     else
         print_error "Web服务启动失败"
-        echo "  尝试手动检查: curl http://localhost:8000/health"
-        echo "  查看日志: tail -f web.log"
         return 1
     fi
 }
@@ -183,14 +132,12 @@ start_wechat() {
     echo $WECHAT_PID > .wechat_pid
     
     # 等待启动
-    sleep 3
+    sleep 2
     
     # 检查是否启动成功
     if curl -s http://localhost:8001/health > /dev/null 2>&1; then
         print_success "微信API服务启动成功"
         echo "  📱 微信API: http://localhost:8001"
-        echo "  📚 API文档: http://localhost:8001/docs"
-        echo "  🔧 PID: $WECHAT_PID"
     else
         print_error "微信API服务启动失败"
         return 1
@@ -214,14 +161,12 @@ start_mcp() {
     echo $MCP_PID > .mcp_pid
     
     # 等待启动
-    sleep 3
+    sleep 2
     
     # 检查是否启动成功
     if curl -s http://localhost:8002/health > /dev/null 2>&1; then
         print_success "MCP服务启动成功"
         echo "  🤖 MCP接口: http://localhost:8002"
-        echo "  📚 文档: http://localhost:8002/docs"
-        echo "  🔧 PID: $MCP_PID"
     else
         print_error "MCP服务启动失败"
         return 1
@@ -233,46 +178,29 @@ show_status() {
     print_info "📊 服务状态"
     echo ""
     
-    local web_status="❌"
-    local wechat_status="❌"
-    local mcp_status="❌"
-    
     # 检查Web服务
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        web_status="✅"
-        echo "  🌐 Web服务:    运行中 $web_status"
+        echo "  🌐 Web服务:    运行中 ✅"
         echo "      管理界面: http://localhost:8000"
-        echo "      API文档:  http://localhost:8000/docs"
     else
-        echo "  🌐 Web服务:    未运行 $web_status"
+        echo "  🌐 Web服务:    未运行 ❌"
     fi
     
     # 检查微信API服务
     if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-        wechat_status="✅"
-        echo "  📱 微信API:    运行中 $wechat_status"
+        echo "  📱 微信API:    运行中 ✅"
         echo "      接口地址: http://localhost:8001"
-        echo "      API文档:  http://localhost:8001/docs"
     else
-        echo "  📱 微信API:    未运行 $wechat_status"
+        echo "  📱 微信API:    未运行 ❌"
     fi
     
     # 检查MCP服务
     if curl -s http://localhost:8002/health > /dev/null 2>&1; then
-        mcp_status="✅"
-        echo "  🤖 MCP服务:    运行中 $mcp_status"
+        echo "  🤖 MCP服务:    运行中 ✅"
         echo "      接口地址: http://localhost:8002"
-        echo "      文档:     http://localhost:8002/docs"
     else
-        echo "  🤖 MCP服务:    未运行 $mcp_status"
+        echo "  🤖 MCP服务:    未运行 ❌"
     fi
-    
-    echo ""
-    print_info "📋 快速访问"
-    echo "  管理界面: http://localhost:8000"
-    echo "  API文档:  http://localhost:8000/docs"
-    echo "  微信API:  http://localhost:8001"
-    echo "  MCP接口:  http://localhost:8002"
 }
 
 # 函数：停止所有服务
@@ -309,18 +237,13 @@ stop_services() {
         rm -f .mcp_pid
     fi
     
-    # 清理可能遗留的进程
-    pkill -f "web/main.py" 2>/dev/null || true
-    pkill -f "wechat/server.py" 2>/dev/null || true
-    pkill -f "mcp_server/server.py" 2>/dev/null || true
-    
     print_success "所有服务已停止"
 }
 
 # 函数：显示帮助
 show_help() {
-    echo "Linux/macOS一键运行脚本"
-    echo "用法: $0 [命令] [选项]"
+    echo "题库系统一键运行脚本"
+    echo "用法: $0 [命令]"
     echo ""
     echo "命令:"
     echo "  start        启动所有服务"
@@ -333,29 +256,14 @@ show_help() {
     echo "  setup        安装依赖和初始化"
     echo "  help         显示此帮助信息"
     echo ""
-    echo "选项:"
-    echo "  --system     使用系统Python安装依赖（不创建虚拟环境）"
-    echo ""
     echo "示例:"
-    echo "  $0 start              # 一键启动所有服务（使用虚拟环境）"
-    echo "  $0 web --system       # 启动Web服务（使用系统Python）"
-    echo "  $0 status             # 查看服务状态"
-    echo "  $0 stop               # 停止所有服务"
-    echo "  $0 setup --system     # 安装依赖到系统Python"
-    echo ""
-    echo "跨平台支持:"
-    echo "  - Linux/macOS: 使用此脚本 (run.sh)"
-    echo "  - Windows:     使用 scripts/windows/run.ps1"
-    echo "  - 通用入口:    使用根目录的 ./run 脚本（自动检测）"
-    echo ""
-    echo "环境要求:"
-    echo "  - Python 3.8+"
-    echo "  - 推荐使用uv包管理器 (https://astral.sh/uv)"
-    echo "  - 默认创建.venv虚拟环境，使用--system跳过"
+    echo "  $0 web        # 启动Web服务"
+    echo "  $0 start      # 启动所有服务"
+    echo "  $0 status     # 查看服务状态"
+    echo "  $0 stop       # 停止所有服务"
     echo ""
     echo "访问地址:"
     echo "  Web管理界面: http://localhost:8000"
-    echo "  API文档:     http://localhost:8000/docs"
     echo "  微信API:     http://localhost:8001"
     echo "  MCP接口:     http://localhost:8002"
 }
@@ -368,16 +276,6 @@ setup_project() {
     if ! command -v uv &> /dev/null; then
         print_warning "未找到uv，建议安装以获得更好体验"
         print_info "安装命令: curl -LsSf https://astral.sh/uv/install.sh | sh"
-        read -p "是否现在安装uv？(y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            curl -LsSf https://astral.sh/uv/install.sh | sh
-            if command -v uv &> /dev/null; then
-                print_success "uv安装成功"
-            else
-                print_error "uv安装失败"
-            fi
-        fi
     fi
     
     # 创建虚拟环境（如果使用uv）
@@ -414,19 +312,14 @@ print('数据库初始化完成')
 # 主程序
 main() {
     print_info "🚀 题库系统一键运行脚本"
-    echo "使用uv虚拟环境运行Python项目"
     echo ""
     
     # 解析参数
-    USE_SYSTEM="false"
     COMMAND="help"
     
     # 解析参数
     for arg in "$@"; do
         case "$arg" in
-            --system)
-                USE_SYSTEM="true"
-                ;;
             start|web|wechat|mcp|status|stop|restart|setup|help)
                 COMMAND="$arg"
                 ;;
@@ -435,8 +328,6 @@ main() {
                 ;;
         esac
     done
-    
-    export USE_SYSTEM
     
     # 设置Python命令
     setup_python_command

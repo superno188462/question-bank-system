@@ -1,23 +1,20 @@
 """
-Web入口配置
+微信小程序入口配置
 """
 
 from shared.config import config as shared_config
 
 
-class WebConfig:
-    """Web入口配置类"""
+class WeChatConfig:
+    """微信小程序入口配置类"""
     
     def __init__(self):
         # 继承共享配置
         self.shared = shared_config
         
-        # Web特定配置
+        # 微信特定配置
         self.HOST = "0.0.0.0"
-        self.PORT = shared_config.WEB_PORT
-        
-        # API文档配置
-        self.DOCS_URL = "/docs"
+        self.PORT = shared_config.WECHAT_PORT
     
     @property
     def DATABASE_URL(self):
@@ -29,8 +26,8 @@ class WebConfig:
     
     @property
     def APP_NAME(self):
-        return self.shared.APP_NAME + " (Web)"
+        return self.shared.APP_NAME + " (微信小程序)"
 
 
-# 创建Web配置实例
-settings = WebConfig()
+# 创建微信配置实例
+settings = WeChatConfig()
