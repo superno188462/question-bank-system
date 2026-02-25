@@ -31,12 +31,16 @@ setup_python_command() {
             PYTHON_CMD="uv run python"
             UV_AVAILABLE=true
         else
-            print_warning "未找到uv虚拟环境，将自动创建..."
+            print_warning "未找到uv虚拟环境，将自动创建并安装依赖..."
             uv venv
             if [[ -d ".venv" ]]; then
                 print_success "uv虚拟环境创建成功: .venv"
                 PYTHON_CMD="uv run python"
                 UV_AVAILABLE=true
+                
+                # 关键修复：创建虚拟环境后立即安装依赖
+                print_info "在新创建的虚拟环境中安装依赖..."
+                uv pip install -r config/requirements.txt
             else
                 print_error "uv虚拟环境创建失败"
                 print_info "尝试使用--system参数安装到系统..."
@@ -99,11 +103,14 @@ install_dependencies() {
         else
             # 检查虚拟环境是否存在
             if [[ -d ".venv" ]]; then
+                print_info "在现有虚拟环境中安装依赖..."
                 uv pip install -r config/requirements.txt
             else
-                print_warning "虚拟环境不存在，尝试创建..."
+                print_warning "虚拟环境不存在，创建并安装依赖..."
                 uv venv
                 if [[ -d ".venv" ]]; then
+                    print_success "虚拟环境创建成功"
+                    print_info "安装依赖到新虚拟环境..."
                     uv pip install -r config/requirements.txt
                 else
                     print_error "虚拟环境创建失败，使用--system参数"

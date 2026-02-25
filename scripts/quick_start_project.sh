@@ -81,11 +81,14 @@ install_dependencies() {
         
         # 检查虚拟环境是否存在
         if [[ -d ".venv" ]]; then
+            print_info "在现有虚拟环境中安装依赖..."
             uv pip install -r config/requirements.txt
         else
-            print_warning "虚拟环境不存在，尝试创建..."
+            print_warning "虚拟环境不存在，创建并安装依赖..."
             uv venv
             if [[ -d ".venv" ]]; then
+                print_success "虚拟环境创建成功"
+                print_info "安装依赖到新虚拟环境..."
                 uv pip install -r config/requirements.txt
             else
                 print_error "虚拟环境创建失败"
