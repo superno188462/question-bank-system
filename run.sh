@@ -310,7 +310,7 @@ stop_services() {
 
 # 函数：显示帮助
 show_help() {
-    echo "根目录一键运行脚本"
+    echo "Linux/macOS一键运行脚本"
     echo "用法: $0 [命令] [选项]"
     echo ""
     echo "命令:"
@@ -333,6 +333,11 @@ show_help() {
     echo "  $0 status             # 查看服务状态"
     echo "  $0 stop               # 停止所有服务"
     echo "  $0 setup --system     # 安装依赖到系统Python"
+    echo ""
+    echo "跨平台支持:"
+    echo "  - Linux/macOS: 使用此脚本 (run.sh)"
+    echo "  - Windows:     使用 scripts/windows/run.ps1"
+    echo "  - 通用入口:    使用根目录的 ./run 脚本（自动检测）"
     echo ""
     echo "环境要求:"
     echo "  - Python 3.8+"

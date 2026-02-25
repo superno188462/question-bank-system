@@ -65,11 +65,11 @@ validate_project_structure() {
     
     # 1. 检查根目录文件数量
     local root_files=$(ls -la | grep -E "^-" | wc -l)
-    if [[ $root_files -gt 5 ]]; then
-        print_warning "根目录文件数量: $root_files (建议 ≤ 5)"
+    if [[ $root_files -gt 6 ]]; then
+        print_warning "根目录文件数量: $root_files (建议 ≤ 6，因跨平台需要)"
         warnings=$((warnings + 1))
     else
-        print_success "根目录文件数量: $root_files"
+        print_success "根目录文件数量: $root_files (符合跨平台需求)"
     fi
     
     # 2. 检查必需文件

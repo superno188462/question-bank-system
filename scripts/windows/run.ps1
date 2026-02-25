@@ -323,7 +323,7 @@ function Stop-Services {
 
 # 函数：显示帮助
 function Show-Help {
-    Write-Host "题库系统Windows启动脚本" -ForegroundColor Cyan
+    Write-Host "Windows一键运行脚本" -ForegroundColor Cyan
     Write-Host "用法: .\run.ps1 [命令] [选项]" -ForegroundColor White
     Write-Host ""
     Write-Host "命令:" -ForegroundColor Yellow
@@ -343,6 +343,11 @@ function Show-Help {
     Write-Host "  .\run.ps1 status           # 查看服务状态" -ForegroundColor White
     Write-Host "  .\run.ps1 stop             # 停止所有服务" -ForegroundColor White
     Write-Host "  .\run.ps1 setup -System    # 安装依赖到系统Python" -ForegroundColor White
+    Write-Host ""
+    Write-Host "跨平台支持:" -ForegroundColor Yellow
+    Write-Host "  - Windows:     使用此脚本 (scripts/windows/run.ps1)" -ForegroundColor White
+    Write-Host "  - Linux/macOS: 使用根目录的 run.sh" -ForegroundColor White
+    Write-Host "  - 通用入口:    使用根目录的 ./run 脚本（自动检测）" -ForegroundColor White
     Write-Host ""
     Write-Host "环境要求:" -ForegroundColor Yellow
     Write-Host "  - Python 3.8+" -ForegroundColor White
