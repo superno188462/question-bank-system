@@ -85,7 +85,17 @@ install_dependencies() {
         # 检查是否使用--system参数
         if [[ "$USE_SYSTEM" == "true" ]]; then
             print_warning "使用--system参数，将安装到系统Python"
-            uv pip install --system -r config/requirements.txt
+            print_warning "注意：可能需要sudo权限"
+            
+            # 尝试安装，如果失败给出提示
+            if uv pip install --system -r config/requirements.txt 2>/dev/null; then
+                print_success "依赖安装成功（系统Python）"
+            else
+                print_error "系统Python安装失败，可能需要sudo权限"
+                print_info "请尝试：sudo uv pip install --system -r config/requirements.txt"
+                print_info "或使用虚拟环境（推荐）：删除--system参数"
+                return 1
+            fi
         else
             # 检查虚拟环境是否存在
             if [[ -d ".venv" ]]; then

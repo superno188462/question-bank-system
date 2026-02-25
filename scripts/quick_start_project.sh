@@ -78,7 +78,22 @@ install_dependencies() {
     
     if [[ "$UV_AVAILABLE" == true ]]; then
         print_info "使用uv安装依赖（极速）..."
-        uv pip install -r config/requirements.txt
+        
+        # 检查虚拟环境是否存在
+        if [[ -d ".venv" ]]; then
+            uv pip install -r config/requirements.txt
+        else
+            print_warning "虚拟环境不存在，尝试创建..."
+            uv venv
+            if [[ -d ".venv" ]]; then
+                uv pip install -r config/requirements.txt
+            else
+                print_error "虚拟环境创建失败"
+                print_info "尝试使用--system参数：uv pip install --system -r config/requirements.txt"
+                print_info "或手动创建：uv venv"
+                return 1
+            fi
+        fi
     elif [[ -f ".venv/bin/pip" ]]; then
         print_info "使用虚拟环境pip安装依赖..."
         .venv/bin/pip install -r config/requirements.txt
