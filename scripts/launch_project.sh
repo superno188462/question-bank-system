@@ -56,12 +56,12 @@ use_project_launcher() {
             print_info "直接启动项目..."
             python start.py
         }
-    elif [[ -f "launch_all.py" ]]; then
-        print_info "找到项目启动脚本: launch_all.py"
+    elif [[ -f "scripts/launch_all.py" ]]; then
+        print_info "找到项目启动脚本: scripts/launch_all.py"
         echo ""
-        print_info "启动命令: python launch_all.py"
+        print_info "启动命令: python scripts/launch_all.py"
         echo ""
-        python launch_all.py
+        python scripts/launch_all.py
     else
         print_error "未找到项目启动脚本"
         echo "可用的启动方式:"
