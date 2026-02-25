@@ -10,8 +10,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 项目路径
-PROJECT_PATH="/home/zkjiao/usr/github/question-bank-system"
+# 项目路径 - 使用脚本所在目录的父目录
+# 禁止硬编码绝对路径！
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_PATH="$(dirname "$SCRIPT_DIR")"
 
 # 函数：打印带颜色的消息
 print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
