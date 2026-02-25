@@ -261,8 +261,9 @@ class QuestionRepository(Repository[Question, str]):
         question_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
         
-        # 序列化选项
-        options_json = json.dumps(question_data.options) if question_data.options else None
+        # 序列化选项（确保是列表）
+        options = question_data.options or []
+        options_json = json.dumps(options)
         
         sql = """
         INSERT INTO questions (id, content, options, answer, explanation, category_id, created_at, updated_at)
@@ -275,8 +276,8 @@ class QuestionRepository(Repository[Question, str]):
                 question_data.content,
                 options_json,
                 question_data.answer,
-                question_data.explanation or "",
-                question_data.category_id or None,
+                question_data.explanation,
+                question_data.category_id,
                 now,
                 now
             ))
@@ -291,11 +292,13 @@ class QuestionRepository(Repository[Question, str]):
         if not row:
             return None
         
-        # 解析选项
-        options = None
+        # 解析选项（确保返回列表）
+        options = []
         if row['options']:
             try:
                 options = json.loads(row['options'])
+                if not isinstance(options, list):
+                    options = []
             except:
                 options = []
         

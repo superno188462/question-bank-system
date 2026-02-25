@@ -40,10 +40,10 @@ def create_tables():
     CREATE TABLE IF NOT EXISTS questions (
         id TEXT PRIMARY KEY,
         content TEXT NOT NULL,
-        options TEXT,  -- JSON格式存储选项列表
+        options TEXT NOT NULL DEFAULT '[]',  -- JSON格式存储选项列表
         answer TEXT NOT NULL,
-        explanation TEXT,
-        category_id TEXT,
+        explanation TEXT NOT NULL,
+        category_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     )

@@ -57,12 +57,12 @@ class Tag(TagBase):
 
 
 class QuestionBase(BaseModel):
-    """题目基础模型"""
-    content: str = Field(..., min_length=1, description="题干内容")
-    options: Optional[List[str]] = Field(None, description="选项列表（填空题为空）")
-    answer: str = Field(..., min_length=1, description="正确答案")
-    explanation: Optional[str] = Field(None, description="题目解析")
-    category_id: Optional[str] = Field(None, description="分类ID")
+    """题目基础模型 - 包含五个核心信息"""
+    content: str = Field(..., min_length=1, description="题干内容（必填）")
+    options: Optional[List[str]] = Field(default=[], description="选项列表（填空题为空列表）")
+    answer: str = Field(..., min_length=1, description="正确答案（必填）")
+    explanation: str = Field(..., min_length=1, description="题目解析（必填）")
+    category_id: str = Field(..., min_length=1, description="分类ID（必填）")
 
 
 class QuestionCreate(QuestionBase):
@@ -99,6 +99,7 @@ class QuestionUpdate(BaseModel):
     answer: Optional[str] = Field(None, min_length=1, description="正确答案")
     explanation: Optional[str] = Field(None, description="题目解析")
     category_id: Optional[str] = Field(None, description="分类ID")
+    tag_ids: Optional[List[str]] = Field(default=[], description="标签ID列表")
 
 
 class Question(QuestionBase):

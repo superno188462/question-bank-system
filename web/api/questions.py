@@ -32,13 +32,13 @@ question_service = QuestionService(question_repo, category_repo, tag_repo)
 @router.post("/", response_model=Question, status_code=status.HTTP_201_CREATED)
 async def create_question(question: QuestionCreate):
     """
-    创建新题目
+    创建新题目（五个核心信息必填）
     
     - **content**: 题干内容（必填）
-    - **options**: 选项列表，JSON格式（可选，填空题目可为空）
+    - **options**: 选项列表，JSON格式（填空题目为空列表）
     - **answer**: 正确答案（必填）
-    - **explanation**: 题目解析（可选）
-    - **category_id**: 分类ID（可选）
+    - **explanation**: 题目解析（必填）
+    - **category_id**: 分类ID（必填）
     - **tag_ids**: 标签ID列表（可选）
     """
     try:
