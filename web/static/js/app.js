@@ -32,14 +32,34 @@ async function initApp() {
 // 加载分类树
 async function loadCategoryTree() {
     try {
+        const treeContainer = document.getElementById('categoryTree');
+        if (!treeContainer) {
+            console.error('找不到categoryTree元素');
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/categories/tree`);
-        if (!response.ok) throw new Error('加载分类失败');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`加载分类失败: ${response.status} - ${errorText}`);
+        }
         
         categoryTreeData = await response.json();
-        renderCategoryTree(categoryTreeData, document.getElementById('categoryTree'));
+        console.log('分类数据:', categoryTreeData);
+        
+        if (!Array.isArray(categoryTreeData)) {
+            throw new Error('返回的数据格式不正确');
+        }
+        
+        renderCategoryTree(categoryTreeData, treeContainer);
     } catch (error) {
         console.error('加载分类树失败:', error);
-        showToast('加载分类失败', 'error');
+        showToast('加载分类失败: ' + error.message, 'error');
+        // 显示错误信息在页面上
+        const treeContainer = document.getElementById('categoryTree');
+        if (treeContainer) {
+            treeContainer.innerHTML = `<div style="color: red; padding: 10px;">加载失败: ${error.message}</div>`;
+        }
     }
 }
 
@@ -59,7 +79,7 @@ function renderCategoryTree(categories, container, level = 0) {
                 <span class="tree-label ${cat.id === currentCategoryId ? 'active' : ''}" 
                       data-id="${cat.id}" 
                       onclick="selectCategory('${cat.id}', '${cat.name}')">
-                    ${cat.name} (${cat.question_count || 0})
+                    ${cat.name}
                 </span>
                 <div class="tree-actions">
                     <button class="tree-btn add" onclick="showAddCategoryModal('${cat.id}')" title="添加子分类">+</button>
