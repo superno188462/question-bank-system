@@ -199,10 +199,60 @@ kill_port() {
 }
 
 # ============================================
+# 数据库初始化
+# ============================================
+init_database() {
+    print_info "检查数据库..."
+    
+    # 创建数据目录
+    mkdir -p data
+    
+    # 使用Python初始化数据库
+    $PYTHON_CMD -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
+try:
+    from core.database.migrations import create_tables, init_default_data
+    from core.database.connection import db
+    
+    # 测试连接并创建表
+    create_tables()
+    
+    # 检查是否需要初始化默认数据
+    try:
+        result = db.fetch_one('SELECT COUNT(*) as count FROM categories')
+        if result['count'] == 0:
+            init_default_data()
+            print('✅ 已初始化默认数据')
+        else:
+            print('✅ 数据库已有数据')
+    except Exception as e:
+        # 表可能不存在，重新创建
+        init_default_data()
+        print('✅ 已初始化默认数据')
+    
+    print('✅ 数据库检查完成')
+except Exception as e:
+    print(f'❌ 数据库初始化失败: {e}')
+    sys.exit(1)
+"
+    
+    if [[ $? -ne 0 ]]; then
+        print_error "数据库初始化失败"
+        exit 1
+    fi
+}
+
+# ============================================
 # 服务启动
 # ============================================
 start_web() {
     print_info "启动Web服务..."
+    
+    # 先初始化数据库
+    init_database
     
     # 强制清理端口 - 确保端口完全释放
     if check_port 8000; then
