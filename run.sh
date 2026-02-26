@@ -95,13 +95,17 @@ setup_python_command() {
         # Windows下检查/创建虚拟环境
         if [[ ! -d ".venv" ]]; then
             print_info "创建虚拟环境..."
-            $PYTHON_CMD -m venv .venv
+            $PYTHON_CMD -m venv .venv --system-site-packages
             print_success "虚拟环境创建成功"
         fi
         
-        # 激活虚拟环境并设置命令
+        # 确保pip已安装
         if [[ -f ".venv/Scripts/python.exe" ]]; then
             PYTHON_CMD=".venv/Scripts/python"
+            if ! $PYTHON_CMD -m pip --version &> /dev/null; then
+                print_info "安装pip到虚拟环境..."
+                curl -s https://bootstrap.pypa.io/get-pip.py | $PYTHON_CMD
+            fi
             print_success "使用虚拟环境Python"
         fi
         
