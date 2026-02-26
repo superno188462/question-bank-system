@@ -204,10 +204,46 @@ kill_port() {
 start_web() {
     print_info "启动Web服务..."
     
+    # 强制清理端口 - 确保端口完全释放
     if check_port 8000; then
-        print_warning "端口8000已被占用，尝试停止现有服务..."
-        kill_port 8000
-        sleep 1
+        print_warning "端口8000已被占用，正在强制清理..."
+        
+        # Windows平台使用PowerShell强制终止
+        if [[ "$PLATFORM" == "Windows" ]]; then
+            # 方法1：使用PowerShell的Get-NetTCPConnection
+            powershell -Command "
+                try {
+                    \$connections = Get-NetTCPConnection -LocalPort 8000 -ErrorAction Stop
+                    foreach (\$conn in \$connections) {
+                        Write-Host '终止PID:' \$conn.OwningProcess
+                        Stop-Process -Id \$conn.OwningProcess -Force -ErrorAction SilentlyContinue
+                    }
+                } catch { }
+            " 2>/dev/null || true
+            
+            # 方法2：使用taskkill终止所有Python进程
+            taskkill //F //IM python.exe 2>/dev/null || true
+            taskkill //F //IM pythonw.exe 2>/dev/null || true
+        else
+            # Linux/Mac
+            lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+            pkill -9 -f "python.*main.py" 2>/dev/null || true
+        fi
+        
+        # 等待端口释放
+        local wait_count=0
+        while check_port 8000 && [[ $wait_count -lt 10 ]]; do
+            sleep 1
+            ((wait_count++))
+            print_info "等待端口释放... ($wait_count/10)"
+        done
+        
+        if check_port 8000; then
+            print_error "端口8000仍被占用，请手动检查: netstat -ano | findstr ':8000'"
+            exit 1
+        else
+            print_success "端口8000已释放"
+        fi
     fi
     
     # 后台启动（Windows和Linux方式不同）
