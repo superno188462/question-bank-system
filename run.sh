@@ -1,46 +1,128 @@
 #!/bin/bash
-# 题库系统一键运行脚本
+# 题库系统一键运行脚本 (支持 Linux/macOS/Windows MSYS2)
 
 set -e
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ============================================
+# 平台检测
+# ============================================
+detect_platform() {
+    case "$(uname -s)" in
+        Linux*)     PLATFORM=Linux;;
+        Darwin*)    PLATFORM=Mac;;
+        CYGWIN*)    PLATFORM=Windows;;
+        MINGW*)     PLATFORM=Windows;;
+        MSYS*)      PLATFORM=Windows;;
+        *)          PLATFORM="UNKNOWN:$(uname -s)";;
+    esac
+    echo "$PLATFORM"
+}
+
+PLATFORM=$(detect_platform)
+
+# ============================================
+# 颜色定义 (Windows MSYS2需要特殊处理)
+# ============================================
+if [[ "$PLATFORM" == "Windows" ]]; then
+    # Windows MSYS2/MINGW 简化颜色输出
+    RED=''
+    GREEN=''
+    YELLOW=''
+    BLUE=''
+    NC=''
+else
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    NC='\033[0m'
+fi
 
 # 函数：打印带颜色的消息
-print_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
-print_success() { echo -e "${GREEN}✅ $1${NC}"; }
-print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
-print_error() { echo -e "${RED}❌ $1${NC}"; }
+print_info() { 
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        echo "[INFO] $1"
+    else
+        echo -e "${BLUE}ℹ️  $1${NC}"
+    fi
+}
 
-# 函数：检查并设置Python命令
+print_success() { 
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        echo "[OK] $1"
+    else
+        echo -e "${GREEN}✅ $1${NC}"
+    fi
+}
+
+print_warning() { 
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        echo "[WARN] $1"
+    else
+        echo -e "${YELLOW}⚠️  $1${NC}"
+    fi
+}
+
+print_error() { 
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        echo "[ERROR] $1"
+    else
+        echo -e "${RED}❌ $1${NC}"
+    fi
+}
+
+# ============================================
+# Python环境设置
+# ============================================
 setup_python_command() {
     print_info "检查Python环境..."
     
-    # 优先使用uv
-    if command -v uv &> /dev/null; then
+    # Windows平台优先使用python命令
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        if command -v python &> /dev/null; then
+            PYTHON_CMD="python"
+            PYTHON_VERSION=$($PYTHON_CMD --version 2>&1)
+            print_success "找到Python: $PYTHON_VERSION"
+        elif command -v python3 &> /dev/null; then
+            PYTHON_CMD="python3"
+            PYTHON_VERSION=$($PYTHON_CMD --version 2>&1)
+            print_success "找到Python3: $PYTHON_VERSION"
+        else
+            print_error "未找到Python，请先安装Python 3.8+"
+            exit 1
+        fi
+        
+        # Windows下检查/创建虚拟环境
+        if [[ ! -d ".venv" ]]; then
+            print_info "创建虚拟环境..."
+            $PYTHON_CMD -m venv .venv
+            print_success "虚拟环境创建成功"
+        fi
+        
+        # 激活虚拟环境并设置命令
+        if [[ -f ".venv/Scripts/python.exe" ]]; then
+            PYTHON_CMD=".venv/Scripts/python"
+            print_success "使用虚拟环境Python"
+        fi
+        
+    # Linux/Mac平台优先使用uv
+    elif command -v uv &> /dev/null; then
         print_success "找到uv包管理器"
         
-        # 检查uv虚拟环境是否存在
         if [[ -d ".venv" ]]; then
             print_success "找到uv虚拟环境: .venv"
             PYTHON_CMD="uv run python"
         else
-            print_warning "未找到uv虚拟环境，将自动创建并安装依赖..."
+            print_warning "未找到uv虚拟环境，将自动创建..."
             uv venv
             if [[ -d ".venv" ]]; then
-                print_success "uv虚拟环境创建成功: .venv"
+                print_success "uv虚拟环境创建成功"
                 PYTHON_CMD="uv run python"
                 
-                # 安装依赖
                 print_info "安装依赖..."
                 uv pip install -r config/requirements.txt
             else
                 print_error "uv虚拟环境创建失败"
-                print_info "尝试使用--system参数安装到系统..."
                 PYTHON_CMD="uv run --system python"
             fi
         fi
@@ -50,7 +132,6 @@ setup_python_command() {
     else
         print_warning "未找到uv或虚拟环境，将使用系统Python"
         
-        # 检查系统Python
         if command -v python &> /dev/null; then
             PYTHON_CMD="python"
         elif command -v python3 &> /dev/null; then
@@ -60,19 +141,23 @@ setup_python_command() {
             exit 1
         fi
         
-        PYTHON_VERSION=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
-        print_warning "使用系统Python: $PYTHON_CMD ($PYTHON_VERSION)"
-        print_warning "建议安装uv或创建虚拟环境：uv venv 或 python -m venv .venv"
+        PYTHON_VERSION=$($PYTHON_CMD --version 2>&1)
+        print_warning "使用系统Python: $PYTHON_VERSION"
     fi
     
     export PYTHON_CMD
 }
 
-# 函数：安装依赖
+# ============================================
+# 依赖安装
+# ============================================
 install_dependencies() {
     print_info "检查依赖..."
     
-    if [[ -d ".venv" ]]; then
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        # Windows直接使用pip
+        $PYTHON_CMD -m pip install -q fastapi uvicorn pydantic jinja2
+    elif [[ -d ".venv" ]]; then
         if command -v uv &> /dev/null; then
             uv pip install -r config/requirements.txt
         elif [[ -f ".venv/bin/pip" ]]; then
@@ -85,100 +170,133 @@ install_dependencies() {
     print_success "依赖检查完成"
 }
 
-# 函数：启动Web服务
+# ============================================
+# 端口检查和进程管理
+# ============================================
+check_port() {
+    local port=$1
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        netstat -ano | grep ":$port " > /dev/null 2>&1
+    else
+        lsof -ti:$port &> /dev/null
+    fi
+}
+
+kill_port() {
+    local port=$1
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        local pid=$(netstat -ano | grep ":$port " | awk '{print $5}' | head -1)
+        if [[ -n "$pid" ]]; then
+            taskkill //F //PID "$pid" 2>/dev/null || true
+        fi
+    else
+        lsof -ti:$port | xargs kill -9 2>/dev/null || true
+    fi
+}
+
+# ============================================
+# 服务启动
+# ============================================
 start_web() {
     print_info "启动Web服务..."
     
-    # 检查端口是否被占用
-    if lsof -ti:8000 &> /dev/null; then
+    if check_port 8000; then
         print_warning "端口8000已被占用，尝试停止现有服务..."
-        lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+        kill_port 8000
         sleep 1
     fi
     
-    # 启动服务
-    $PYTHON_CMD web/main.py &
-    WEB_PID=$!
-    echo $WEB_PID > .web_pid
-    
-    # 等待启动
-    sleep 3
-    
-    # 检查是否启动成功
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-        print_success "Web服务启动成功"
-        echo "  🌐 管理界面: http://localhost:8000"
-        echo "  📚 API文档: http://localhost:8000/docs"
+    # 后台启动（Windows和Linux方式不同）
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        # Windows下直接前台启动（MSYS2不支持真正的后台）
+        print_info "启动Web服务器..."
+        print_info "地址: http://localhost:8000"
+        print_info "API文档: http://localhost:8000/docs"
+        print_info "按 Ctrl+C 停止服务"
+        echo ""
+        $PYTHON_CMD web/main.py
     else
-        print_error "Web服务启动失败"
-        return 1
+        # Linux/Mac下后台启动
+        $PYTHON_CMD web/main.py &
+        WEB_PID=$!
+        echo $WEB_PID > .web_pid
+        
+        sleep 3
+        
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            print_success "Web服务启动成功"
+            echo "  🌐 管理界面: http://localhost:8000"
+            echo "  📚 API文档: http://localhost:8000/docs"
+        else
+            print_error "Web服务启动失败"
+            return 1
+        fi
     fi
 }
 
-# 函数：启动微信API服务
 start_wechat() {
     print_info "启动微信API服务..."
     
-    # 检查端口是否被占用
-    if lsof -ti:8001 &> /dev/null; then
+    if check_port 8001; then
         print_warning "端口8001已被占用，尝试停止现有服务..."
-        lsof -ti:8001 | xargs kill -9 2>/dev/null || true
+        kill_port 8001
         sleep 1
     fi
     
-    # 启动服务
-    $PYTHON_CMD wechat/server.py &
-    WECHAT_PID=$!
-    echo $WECHAT_PID > .wechat_pid
-    
-    # 等待启动
-    sleep 2
-    
-    # 检查是否启动成功
-    if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-        print_success "微信API服务启动成功"
-        echo "  📱 微信API: http://localhost:8001"
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        print_info "Windows环境下请单独运行: $PYTHON_CMD wechat/server.py"
     else
-        print_error "微信API服务启动失败"
-        return 1
+        $PYTHON_CMD wechat/server.py &
+        WECHAT_PID=$!
+        echo $WECHAT_PID > .wechat_pid
+        
+        sleep 2
+        
+        if curl -s http://localhost:8001/health > /dev/null 2>&1; then
+            print_success "微信API服务启动成功"
+            echo "  📱 微信API: http://localhost:8001"
+        else
+            print_error "微信API服务启动失败"
+            return 1
+        fi
     fi
 }
 
-# 函数：启动MCP服务
 start_mcp() {
     print_info "启动MCP服务..."
     
-    # 检查端口是否被占用
-    if lsof -ti:8002 &> /dev/null; then
+    if check_port 8002; then
         print_warning "端口8002已被占用，尝试停止现有服务..."
-        lsof -ti:8002 | xargs kill -9 2>/dev/null || true
+        kill_port 8002
         sleep 1
     fi
     
-    # 启动服务
-    $PYTHON_CMD mcp_server/server.py &
-    MCP_PID=$!
-    echo $MCP_PID > .mcp_pid
-    
-    # 等待启动
-    sleep 2
-    
-    # 检查是否启动成功
-    if curl -s http://localhost:8002/health > /dev/null 2>&1; then
-        print_success "MCP服务启动成功"
-        echo "  🤖 MCP接口: http://localhost:8002"
+    if [[ "$PLATFORM" == "Windows" ]]; then
+        print_info "Windows环境下请单独运行: $PYTHON_CMD mcp_server/server.py"
     else
-        print_error "MCP服务启动失败"
-        return 1
+        $PYTHON_CMD mcp_server/server.py &
+        MCP_PID=$!
+        echo $MCP_PID > .mcp_pid
+        
+        sleep 2
+        
+        if curl -s http://localhost:8002/health > /dev/null 2>&1; then
+            print_success "MCP服务启动成功"
+            echo "  🤖 MCP接口: http://localhost:8002"
+        else
+            print_error "MCP服务启动失败"
+            return 1
+        fi
     fi
 }
 
-# 函数：显示服务状态
+# ============================================
+# 状态显示
+# ============================================
 show_status() {
     print_info "📊 服务状态"
     echo ""
     
-    # 检查Web服务
     if curl -s http://localhost:8000/health > /dev/null 2>&1; then
         echo "  🌐 Web服务:    运行中 ✅"
         echo "      管理界面: http://localhost:8000"
@@ -186,7 +304,6 @@ show_status() {
         echo "  🌐 Web服务:    未运行 ❌"
     fi
     
-    # 检查微信API服务
     if curl -s http://localhost:8001/health > /dev/null 2>&1; then
         echo "  📱 微信API:    运行中 ✅"
         echo "      接口地址: http://localhost:8001"
@@ -194,7 +311,6 @@ show_status() {
         echo "  📱 微信API:    未运行 ❌"
     fi
     
-    # 检查MCP服务
     if curl -s http://localhost:8002/health > /dev/null 2>&1; then
         echo "  🤖 MCP服务:    运行中 ✅"
         echo "      接口地址: http://localhost:8002"
@@ -203,53 +319,35 @@ show_status() {
     fi
 }
 
-# 函数：停止所有服务
+# ============================================
+# 停止服务
+# ============================================
 stop_services() {
     print_info "停止所有服务..."
     
-    # 停止Web服务
-    if [[ -f ".web_pid" ]]; then
-        local pid=$(cat .web_pid)
-        if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            print_info "已停止Web服务 (PID: $pid)"
-        fi
-        rm -f .web_pid
-    fi
+    kill_port 8000
+    kill_port 8001
+    kill_port 8002
     
-    # 停止微信API服务
-    if [[ -f ".wechat_pid" ]]; then
-        local pid=$(cat .wechat_pid)
-        if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            print_info "已停止微信API服务 (PID: $pid)"
-        fi
-        rm -f .wechat_pid
-    fi
-    
-    # 停止MCP服务
-    if [[ -f ".mcp_pid" ]]; then
-        local pid=$(cat .mcp_pid)
-        if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
-            print_info "已停止MCP服务 (PID: $pid)"
-        fi
-        rm -f .mcp_pid
-    fi
+    rm -f .web_pid .wechat_pid .mcp_pid
     
     print_success "所有服务已停止"
 }
 
-# 函数：显示帮助
+# ============================================
+# 帮助信息
+# ============================================
 show_help() {
-    echo "题库系统一键运行脚本"
-    echo "用法: $0 [命令]"
+    echo "题库系统一键运行脚本 (支持 Linux/macOS/Windows MSYS2)"
+    echo "当前平台: $PLATFORM"
+    echo ""
+    echo "用法: ./run.sh [命令]"
     echo ""
     echo "命令:"
-    echo "  start        启动所有服务"
-    echo "  web          只启动Web服务"
-    echo "  wechat       只启动微信API服务"
-    echo "  mcp          只启动MCP服务"
+    echo "  start        启动所有服务 (仅Linux/Mac)"
+    echo "  web          启动Web服务"
+    echo "  wechat       启动微信API服务 (仅Linux/Mac)"
+    echo "  mcp          启动MCP服务 (仅Linux/Mac)"
     echo "  status       显示服务状态"
     echo "  stop         停止所有服务"
     echo "  restart      重启所有服务"
@@ -257,51 +355,39 @@ show_help() {
     echo "  help         显示此帮助信息"
     echo ""
     echo "示例:"
-    echo "  $0 web        # 启动Web服务"
-    echo "  $0 start      # 启动所有服务"
-    echo "  $0 status     # 查看服务状态"
-    echo "  $0 stop       # 停止所有服务"
+    echo "  ./run.sh web        # 启动Web服务"
+    echo "  ./run.sh status     # 查看服务状态"
+    echo "  ./run.sh stop       # 停止所有服务"
     echo ""
     echo "访问地址:"
     echo "  Web管理界面: http://localhost:8000"
     echo "  微信API:     http://localhost:8001"
     echo "  MCP接口:     http://localhost:8002"
+    echo ""
+    echo "注意: Windows环境下建议只运行 './run.sh web'"
 }
 
-# 函数：安装依赖和初始化
+# ============================================
+# 项目设置
+# ============================================
 setup_project() {
     print_info "项目设置..."
+    print_info "当前平台: $PLATFORM"
     
-    # 检查uv
-    if ! command -v uv &> /dev/null; then
-        print_warning "未找到uv，建议安装以获得更好体验"
-        print_info "安装命令: curl -LsSf https://astral.sh/uv/install.sh | sh"
-    fi
-    
-    # 创建虚拟环境（如果使用uv）
-    if command -v uv &> /dev/null && [[ ! -d ".venv" ]]; then
-        print_info "创建uv虚拟环境..."
-        uv venv
-    fi
+    # 创建数据目录
+    mkdir -p data
     
     # 安装依赖
     install_dependencies
     
     # 初始化数据库
     print_info "初始化数据库..."
-    mkdir -p data
     $PYTHON_CMD -c "
 import sys
 import os
 sys.path.insert(0, os.getcwd())
 
-from core.database.connection import db
 from core.database.migrations import create_tables
-
-# 确保数据目录存在
-os.makedirs('data', exist_ok=True)
-
-# 创建表
 create_tables()
 print('数据库初始化完成')
 "
@@ -309,48 +395,59 @@ print('数据库初始化完成')
     print_success "项目设置完成"
 }
 
+# ============================================
 # 主程序
+# ============================================
 main() {
     print_info "🚀 题库系统一键运行脚本"
+    print_info "平台: $PLATFORM"
     echo ""
     
-    # 解析参数
     COMMAND="help"
     
-    # 解析参数
     for arg in "$@"; do
         case "$arg" in
             start|web|wechat|mcp|status|stop|restart|setup|help)
                 COMMAND="$arg"
                 ;;
-            *)
-                # 忽略其他参数
-                ;;
         esac
     done
     
-    # 设置Python命令
     setup_python_command
     
     case "$COMMAND" in
         "start")
-            install_dependencies
-            start_web
-            start_wechat
-            start_mcp
-            show_status
+            if [[ "$PLATFORM" == "Windows" ]]; then
+                print_warning "Windows环境下 'start' 命令只启动Web服务"
+                install_dependencies
+                start_web
+            else
+                install_dependencies
+                start_web
+                start_wechat
+                start_mcp
+                show_status
+            fi
             ;;
         "web")
             install_dependencies
             start_web
             ;;
         "wechat")
-            install_dependencies
-            start_wechat
+            if [[ "$PLATFORM" == "Windows" ]]; then
+                print_error "Windows环境下请直接运行: $PYTHON_CMD wechat/server.py"
+            else
+                install_dependencies
+                start_wechat
+            fi
             ;;
         "mcp")
-            install_dependencies
-            start_mcp
+            if [[ "$PLATFORM" == "Windows" ]]; then
+                print_error "Windows环境下请直接运行: $PYTHON_CMD mcp_server/server.py"
+            else
+                install_dependencies
+                start_mcp
+            fi
             ;;
         "status")
             show_status
@@ -363,8 +460,10 @@ main() {
             sleep 2
             install_dependencies
             start_web
-            start_wechat
-            start_mcp
+            if [[ "$PLATFORM" != "Windows" ]]; then
+                start_wechat
+                start_mcp
+            fi
             show_status
             ;;
         "setup")
@@ -381,9 +480,10 @@ main() {
             ;;
     esac
     
-    echo ""
-    print_success "操作完成！"
+    if [[ "$PLATFORM" != "Windows" ]] || [[ "$COMMAND" != "web" ]]; then
+        echo ""
+        print_success "操作完成！"
+    fi
 }
 
-# 运行主程序
 main "$@"
