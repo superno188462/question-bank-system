@@ -57,13 +57,13 @@ class CategoryRepository(Repository[Category, str]):
     """分类仓库"""
     
     def create(self, category_data: CategoryCreate) -> Category:
-        """创建分类"""
+        """创建分类（支持层级）"""
         category_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
         
         sql = """
-        INSERT INTO categories (id, name, description, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO categories (id, name, description, parent_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         """
         
         with transaction():
@@ -71,6 +71,7 @@ class CategoryRepository(Repository[Category, str]):
                 category_id,
                 category_data.name,
                 category_data.description or "",
+                category_data.parent_id,
                 now,
                 now
             ))
@@ -89,6 +90,7 @@ class CategoryRepository(Repository[Category, str]):
             id=row['id'],
             name=row['name'],
             description=row['description'],
+            parent_id=row['parent_id'],
             created_at=datetime.fromisoformat(row['created_at']),
             updated_at=datetime.fromisoformat(row['updated_at'])
         )
@@ -103,6 +105,7 @@ class CategoryRepository(Repository[Category, str]):
                 id=row['id'],
                 name=row['name'],
                 description=row['description'],
+                parent_id=row['parent_id'],
                 created_at=datetime.fromisoformat(row['created_at']),
                 updated_at=datetime.fromisoformat(row['updated_at'])
             )
@@ -110,7 +113,7 @@ class CategoryRepository(Repository[Category, str]):
         ]
     
     def update(self, category_id: str, update_data: CategoryUpdate) -> Optional[Category]:
-        """更新分类"""
+        """更新分类（支持移动层级）"""
         # 构建更新字段
         updates = []
         params = []
@@ -122,6 +125,10 @@ class CategoryRepository(Repository[Category, str]):
         if update_data.description is not None:
             updates.append("description = ?")
             params.append(update_data.description)
+        
+        if update_data.parent_id is not None:
+            updates.append("parent_id = ?")
+            params.append(update_data.parent_id)
         
         if not updates:
             return self.get_by_id(category_id)

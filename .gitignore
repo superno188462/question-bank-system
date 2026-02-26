@@ -67,4 +67,8 @@ wechat-miniprogram/project.private.config.json
 # 部署配置文件（可能包含敏感信息）
 deployments/*.env
 deployments/*.secret
-deployments/ssl/
+deployments/ssl/# Web Frontend
+web_frontend/node_modules/
+__pycache__/
+*.pyc
+.web_pid

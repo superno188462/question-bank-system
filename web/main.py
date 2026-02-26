@@ -2,8 +2,11 @@
 Web入口主文件
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
 import os
 
 # 添加项目根目录到Python路径
@@ -12,6 +15,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from web.api import categories, tags, questions
 from web.config import settings
+
+# 获取web目录路径
+WEB_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def create_web_app() -> FastAPI:
@@ -34,19 +40,21 @@ def create_web_app() -> FastAPI:
         allow_headers=["*"],
     )
     
+    # 挂载静态文件
+    app.mount("/static", StaticFiles(directory=os.path.join(WEB_DIR, "static")), name="static")
+    
+    # 配置模板
+    templates = Jinja2Templates(directory=os.path.join(WEB_DIR, "templates"))
+    
     # 注册API路由
     app.include_router(categories.router, prefix="/api", tags=["分类管理"])
     app.include_router(tags.router, prefix="/api", tags=["标签管理"])
     app.include_router(questions.router, prefix="/api", tags=["题目管理"])
     
-    # 根路径
-    @app.get("/")
-    async def root():
-        return {
-            "message": "题库管理系统 Web入口",
-            "docs": settings.DOCS_URL,
-            "api_base": "/api"
-        }
+    # 主页 - 返回管理界面
+    @app.get("/", response_class=HTMLResponse)
+    async def root(request: Request):
+        return templates.TemplateResponse("index.html", {"request": request})
     
     # 健康检查端点
     @app.get("/health")

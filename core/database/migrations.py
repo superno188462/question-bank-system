@@ -14,14 +14,16 @@ from core.database.connection import db
 def create_tables():
     """创建所有数据库表"""
     
-    # 分类表
+    # 分类表（支持多层级）
     categories_sql = """
     CREATE TABLE IF NOT EXISTS categories (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         description TEXT,
+        parent_id TEXT,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
     )
     """
     

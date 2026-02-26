@@ -13,6 +13,7 @@ class CategoryBase(BaseModel):
     """分类基础模型"""
     name: str = Field(..., min_length=1, max_length=100, description="分类名称")
     description: Optional[str] = Field(None, max_length=500, description="分类描述")
+    parent_id: Optional[str] = Field(None, description="父分类ID，为空则为根分类")
 
 
 class CategoryCreate(CategoryBase):
@@ -24,6 +25,7 @@ class CategoryUpdate(BaseModel):
     """更新分类请求模型"""
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="分类名称")
     description: Optional[str] = Field(None, max_length=500, description="分类描述")
+    parent_id: Optional[str] = Field(None, description="父分类ID，用于移动分类")
 
 
 class Category(CategoryBase):

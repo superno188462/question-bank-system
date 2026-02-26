@@ -11,8 +11,13 @@
 - 管理题目标签
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from core.models import (
     Question, QuestionCreate, QuestionUpdate, 
@@ -20,6 +25,15 @@ from core.models import (
 )
 from core.services import QuestionService
 from core.database.repositories import question_repo, category_repo, tag_repo
+
+
+# 题目列表响应模型
+class QuestionListResponse(BaseModel):
+    data: List[Question]
+    total: int
+    page: int
+    limit: int
+    pages: int
 
 
 # 创建路由
@@ -54,7 +68,7 @@ async def create_question(question: QuestionCreate):
         )
 
 
-@router.get("/", response_model=List[Question])
+@router.get("/", response_model=QuestionListResponse)
 async def get_questions(
     category_id: Optional[str] = Query(None, description="按分类筛选"),
     tag_id: Optional[str] = Query(None, description="按标签筛选"),
@@ -70,12 +84,13 @@ async def get_questions(
     - **limit**: 每页数量，1-100
     """
     try:
-        return question_service.get_questions(
+        result = question_service.get_all_questions(
             category_id=category_id,
             tag_id=tag_id,
             page=page,
             limit=limit
         )
+        return QuestionListResponse(**result)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -90,34 +105,42 @@ async def get_questions(
 @router.get("/{question_id}", response_model=Question)
 async def get_question(question_id: str):
     """
-    根据ID获取题目详情
+    获取单个题目详情
     
     - **question_id**: 题目ID
     """
-    question = question_service.get_question(question_id)
-    if not question:
+    try:
+        question = question_service.get_question(question_id)
+        if not question:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ErrorResponse(
+                    error=True,
+                    code=ErrorCodes.NOT_FOUND,
+                    message="题目不存在"
+                ).dict()
+            )
+        return question
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ErrorResponse(
                 error=True,
-                code=ErrorCodes.NOT_FOUND,
-                message=f"题目不存在: {question_id}"
+                code=ErrorCodes.INTERNAL_ERROR,
+                message=f"获取题目失败: {str(e)}"
             ).dict()
         )
-    return question
 
 
 @router.put("/{question_id}", response_model=Question)
 async def update_question(question_id: str, update_data: QuestionUpdate):
     """
-    更新题目信息
+    更新题目
     
     - **question_id**: 题目ID
-    - **content**: 新的题干内容（可选）
-    - **options**: 新的选项列表（可选）
-    - **answer**: 新的答案（可选）
-    - **explanation**: 新的解析（可选）
-    - **category_id**: 新的分类ID（可选）
+    - **update_data**: 更新的字段（部分更新）
     """
     try:
         question = question_service.update_question(question_id, update_data)
@@ -127,7 +150,7 @@ async def update_question(question_id: str, update_data: QuestionUpdate):
                 detail=ErrorResponse(
                     error=True,
                     code=ErrorCodes.NOT_FOUND,
-                    message=f"题目不存在: {question_id}"
+                    message="题目不存在"
                 ).dict()
             )
         return question
@@ -144,45 +167,58 @@ async def update_question(question_id: str, update_data: QuestionUpdate):
         )
 
 
-@router.delete("/{question_id}", response_model=SuccessResponse)
+@router.delete("/{question_id}")
 async def delete_question(question_id: str):
     """
     删除题目
     
     - **question_id**: 题目ID
     """
-    success = question_service.delete_question(question_id)
-    if not success:
+    try:
+        success = question_service.delete_question(question_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=ErrorResponse(
+                    error=True,
+                    code=ErrorCodes.NOT_FOUND,
+                    message="题目不存在"
+                ).dict()
+            )
+        return SuccessResponse(message="题目删除成功")
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ErrorResponse(
                 error=True,
-                code=ErrorCodes.NOT_FOUND,
-                message=f"题目不存在: {question_id}"
+                code=ErrorCodes.INTERNAL_ERROR,
+                message=f"删除题目失败: {str(e)}"
             ).dict()
         )
-    
-    return SuccessResponse(
-        success=True,
-        message=f"题目已删除: {question_id}"
-    )
 
 
-@router.get("/search/", response_model=List[Question])
+@router.get("/search/keyword")
 async def search_questions(
-    keyword: str = Query(..., description="搜索关键词"),
+    keyword: str = Query(..., min_length=1, description="搜索关键词"),
     page: int = Query(1, ge=1, description="页码"),
     limit: int = Query(20, ge=1, le=100, description="每页数量")
 ):
     """
     搜索题目
     
-    - **keyword**: 搜索关键词，匹配题干内容或解析
+    - **keyword**: 搜索关键词（至少1个字符）
     - **page**: 页码，从1开始
     - **limit**: 每页数量，1-100
     """
     try:
-        return question_service.search_questions(keyword, page, limit)
+        result = question_service.get_all_questions(
+            keyword=keyword,
+            page=page,
+            limit=limit
+        )
+        return QuestionListResponse(**result)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -194,7 +230,7 @@ async def search_questions(
         )
 
 
-@router.post("/{question_id}/tags/{tag_id}", response_model=SuccessResponse)
+@router.post("/{question_id}/tags/{tag_id}")
 async def add_tag_to_question(question_id: str, tag_id: str):
     """
     为题目添加标签
@@ -202,24 +238,32 @@ async def add_tag_to_question(question_id: str, tag_id: str):
     - **question_id**: 题目ID
     - **tag_id**: 标签ID
     """
-    success = question_service.add_tag_to_question(question_id, tag_id)
-    if not success:
+    try:
+        success = question_service.add_tag_to_question(question_id, tag_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ErrorResponse(
+                    error=True,
+                    code=ErrorCodes.VALIDATION_ERROR,
+                    message="添加标签失败，请检查题目和标签是否存在"
+                ).dict()
+            )
+        return SuccessResponse(message="标签添加成功")
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ErrorResponse(
                 error=True,
-                code=ErrorCodes.VALIDATION_ERROR,
-                message=f"添加标签失败，请检查题目和标签是否存在"
+                code=ErrorCodes.INTERNAL_ERROR,
+                message=f"添加标签失败: {str(e)}"
             ).dict()
         )
-    
-    return SuccessResponse(
-        success=True,
-        message=f"已为题目 {question_id} 添加标签 {tag_id}"
-    )
 
 
-@router.delete("/{question_id}/tags/{tag_id}", response_model=SuccessResponse)
+@router.delete("/{question_id}/tags/{tag_id}")
 async def remove_tag_from_question(question_id: str, tag_id: str):
     """
     从题目移除标签
@@ -227,18 +271,26 @@ async def remove_tag_from_question(question_id: str, tag_id: str):
     - **question_id**: 题目ID
     - **tag_id**: 标签ID
     """
-    success = question_service.remove_tag_from_question(question_id, tag_id)
-    if not success:
+    try:
+        success = question_service.remove_tag_from_question(question_id, tag_id)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=ErrorResponse(
+                    error=True,
+                    code=ErrorCodes.VALIDATION_ERROR,
+                    message="移除标签失败"
+                ).dict()
+            )
+        return SuccessResponse(message="标签移除成功")
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=ErrorResponse(
                 error=True,
-                code=ErrorCodes.VALIDATION_ERROR,
-                message=f"移除标签失败，请检查题目和标签是否存在"
+                code=ErrorCodes.INTERNAL_ERROR,
+                message=f"移除标签失败: {str(e)}"
             ).dict()
         )
-    
-    return SuccessResponse(
-        success=True,
-        message=f"已从题目 {question_id} 移除标签 {tag_id}"
-    )

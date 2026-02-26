@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>题库管理系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部导航 -->
+        <header class="header">
+            <h1>📚 题库管理系统</h1>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tab="questions">题目管理</button>
+                <button class="nav-tab" data-tab="categories">分类管理</button>
+                <button class="nav-tab" data-tab="chat">智能问答</button>
+                <button class="nav-tab" data-tab="pending">预备题目</button>
+            </nav>
+        </header>
+
+        <!-- 题目管理标签页 -->
+        <div id="tab-questions" class="tab-content active">
+            <div class="main-layout">
+                <!-- 左侧分类树 -->
+                <aside class="sidebar">
+                    <h3>📁 分类目录</h3>
+                    <div id="categoryTree" class="category-tree">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </aside>
+
+                <!-- 右侧内容区 -->
+                <main class="content-area">
+                    <!-- 面包屑 -->
+                    <div id="breadcrumb" class="breadcrumb">
+                        <span class="breadcrumb-item" data-id="">全部题目</span>
+                    </div>
+
+                    <!-- 搜索和操作栏 -->
+                    <div class="content-header">
+                        <h2 class="content-title" id="contentTitle">全部题目</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="search-bar" style="margin: 0;">
+                                <input type="text" id="searchInput" class="search-input" placeholder="搜索题目...">
+                                <button class="btn btn-primary" onclick="searchQuestions()">🔍 搜索</button>
+                            </div>
+                            <button class="btn btn-secondary" onclick="openQuestionModal()">➕ 添加题目</button>
+                        </div>
+                    </div>
+
+                    <!-- 题目列表 -->
+                    <div id="questionList" class="question-list">
+                        <div class="loading-spinner"></div>
+                    </div>
+
+                    <!-- 分页 -->
+                    <div id="pagination" class="pagination"></div>
+                </main>
+            </div>
+        </div>
+
+        <!-- 分类管理标签页 -->
+        <div id="tab-categories" class="tab-content">
+            <div class="content-area">
+                <div class="content-header">
+                    <h2 class="content-title">分类管理</h2>
+                    <button class="btn btn-secondary" onclick="openCategoryModal()">➕ 添加根分类</button>
+                </div>
+                <div id="categoryManagementTree" class="category-tree">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 智能问答标签页 -->
+        <div id="tab-chat" class="tab-content">
+            <div class="main-layout">
+                <aside class="sidebar">
+                    <h3>💡 使用说明</h3>
+                    <p style="color: var(--text-light); font-size: 14px; line-height: 1.8;">
+                        输入自然语言描述你的问题，AI会从题库中匹配相关题目并给出参考解答。
+                    </p>
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid var(--border);">
+                    <h4>示例问题：</h4>
+                    <ul style="font-size: 13px; color: var(--text-light); padding-left: 20px; line-height: 2;">
+                        <li>如何计算圆的面积？</li>
+                        <li>Python中列表和元组有什么区别？</li>
+                        <li>求解方程 2x + 5 = 13</li>
+                    </ul>
+                </aside>
+                <main class="content-area">
+                    <div class="chat-container">
+                        <div id="chatMessages" class="chat-messages">
+                            <div class="chat-message bot">
+                                <div class="message-bubble">
+                                    你好！我是智能问答助手。请描述你想了解的问题，我会从题库中找到相关的题目来帮助你。
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <input type="text" id="chatInput" class="chat-input" placeholder="输入你的问题...">
+                            <button class="chat-send" onclick="sendChatMessage()">发送</button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- 预备题目标签页 -->
+        <div id="tab-pending" class="tab-content">
+            <div class="content-area">
+                <div class="content-header">
+                    <h2 class="content-title">预备题目管理</h2>
+                    <p style="color: var(--text-light);">这些题目来自智能问答，等待确认后入库</p>
+                </div>
+                <div id="pendingList">
+                    <table class="pending-table">
+                        <thead>
+                            <tr>
+                                <th>题目内容</th>
+                                <th>来源</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 40px;">
+                                    <div class="loading-spinner"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 题目编辑模态框 -->
+    <div id="questionModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="questionModalTitle">添加题目</h3>
+                <button class="modal-close" onclick="closeQuestionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="questionForm">
+                    <input type="hidden" id="questionId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">题干 *</label>
+                        <textarea id="questionContent" class="form-textarea" placeholder="请输入题目内容" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">选项（选择题）</label>
+                        <div class="options-editor" id="optionsEditor">
+                            <div class="option-row">
+                                <input type="text" class="option-input" placeholder="选项 A">
+                                <label class="option-correct">
+                                    <input type="radio" name="correctOption" value="0">
+                                    正确答案
+                                </label>
+                            </div>
+                            <div class="option-row">
+                                <input type="text" class="option-input" placeholder="选项 B">
+                                <label class="option-correct">
+                                    <input type="radio" name="correctOption" value="1">
+                                    正确答案
+                                </label>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm" onclick="addOptionRow()" style="margin-top: 10px;">+ 添加选项</button>
+                        <p class="form-hint">如果是填空题，可以不填写选项</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">答案 *</label>
+                        <input type="text" id="questionAnswer" class="form-input" placeholder="请输入正确答案" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">解析 *</label>
+                        <textarea id="questionExplanation" class="form-textarea" placeholder="请输入题目解析" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">分类 *</label>
+                        <select id="questionCategory" class="form-select" required>
+                            <option value="">请选择分类</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">标签</label>
+                        <input type="text" id="questionTags" class="form-input" placeholder="用逗号分隔多个标签，如：数学,几何,基础">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeQuestionModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveQuestion()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类编辑模态框 -->
+    <div id="categoryModal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="categoryModalTitle">添加分类</h3>
+                <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="categoryForm">
+                    <input type="hidden" id="categoryId">
+                    <input type="hidden" id="categoryParentId">
+                    
+                    <div class="form-group">
+                        <label class="form-label">父分类</label>
+                        <input type="text" id="categoryParentName" class="form-input" disabled placeholder="无（根分类）">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">分类名称 *</label>
+                        <input type="text" id="categoryName" class="form-input" placeholder="请输入分类名称" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">描述</label>
+                        <textarea id="categoryDescription" class="form-textarea" placeholder="可选：输入分类描述"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeCategoryModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveCategory()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 题目详情模态框 -->
+    <div id="detailModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">题目详情</h3>
+                <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="detailContent">
+                <!-- 动态填充 -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeDetailModal()">关闭</button>
+                <button class="btn btn-primary" id="detailEditBtn" onclick="editCurrentQuestion()">编辑</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
