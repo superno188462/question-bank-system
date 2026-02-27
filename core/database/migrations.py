@@ -126,10 +126,10 @@ def init_default_data():
             now = datetime.now().isoformat()
             
             sql = """
-            INSERT INTO categories (id, name, description, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO categories (id, name, description, parent_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             """
-            db.execute(sql, (category_id, name, description, now, now))
+            db.execute(sql, (category_id, name, description, None, now, now))
         
         # 插入默认标签
         tags = [
