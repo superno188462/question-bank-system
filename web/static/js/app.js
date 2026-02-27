@@ -257,9 +257,9 @@ async function loadQuestions(categoryId = null, page = 1) {
         if (!response.ok) throw new Error('加载题目失败');
         
         const data = await response.json();
-        currentQuestions = data.questions || [];
+        currentQuestions = data.data || [];
         currentPage = data.page || 1;
-        totalPages = data.total_pages || 1;
+        totalPages = data.pages || 1;
         
         renderQuestionList(currentQuestions);
         renderPagination();
