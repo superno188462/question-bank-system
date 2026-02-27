@@ -160,8 +160,15 @@ function showAddCategoryModal(parentId = null) {
     document.getElementById('categoryModalTitle').textContent = parentId ? '添加子分类' : '添加分类';
     document.getElementById('categoryId').value = '';
     document.getElementById('categoryName').value = '';
-    document.getElementById('parentCategoryId').value = parentId || '';
+    document.getElementById('categoryParentId').value = parentId || '';
+    document.getElementById('categoryParentName').value = parentId ? '子分类' : '无（根分类）';
+    document.getElementById('categoryDescription').value = '';
     document.getElementById('categoryModal').classList.add('active');
+}
+
+// 打开分类模态框（兼容HTML中的调用）
+function openCategoryModal() {
+    showAddCategoryModal(null);
 }
 
 // 显示编辑分类模态框
@@ -169,14 +176,23 @@ function showEditCategoryModal(id, name) {
     document.getElementById('categoryModalTitle').textContent = '编辑分类';
     document.getElementById('categoryId').value = id;
     document.getElementById('categoryName').value = name;
+    document.getElementById('categoryParentId').value = '';
+    document.getElementById('categoryParentName').value = '';
+    document.getElementById('categoryDescription').value = '';
     document.getElementById('categoryModal').classList.add('active');
+}
+
+// 关闭分类模态框
+function closeCategoryModal() {
+    document.getElementById('categoryModal')?.classList.remove('active');
 }
 
 // 保存分类
 async function saveCategory() {
     const id = document.getElementById('categoryId').value;
     const name = document.getElementById('categoryName').value.trim();
-    const parentId = document.getElementById('parentCategoryId').value;
+    const description = document.getElementById('categoryDescription').value.trim();
+    const parentId = document.getElementById('categoryParentId').value;
     
     if (!name) {
         showToast('请输入分类名称', 'error');
@@ -796,12 +812,121 @@ function switchTab(tabId) {
     // 特殊处理
     if (tabId === 'qa') {
         loadPendingQuestions();
+
+// ============ 工具函数 ============
+
+// 绑定事件
+function bindEvents() {
+    // 标签页切换
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.dataset.tab;
+            switchTab(tabId);
+        });
+    });
+    
+    // 搜索框回车
+    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchQuestions();
+    });
+    
+    // 聊天输入框回车
+    document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendQuestion();
+        }
+    });
+}
+
+// 切换标签页
+function switchTab(tabId) {
+    // 更新导航
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-tab="${tabId}"]`)?.classList.add('active');
+    
+    // 更新内容
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`tab-${tabId}`)?.classList.add('active');
+    
+    // 特殊处理
+    if (tabId === 'pending') {
+        loadPendingQuestions();
     }
+    if (tabId === 'categories') {
+        loadCategoryManagementTree();
+    }
+}
+
+// 加载分类管理树
+async function loadCategoryManagementTree() {
+    const container = document.getElementById('categoryManagementTree');
+    if (!container) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/categories/tree`);
+        if (!response.ok) throw new Error('加载失败');
+        
+        const categories = await response.json();
+        renderCategoryManagementTree(categories, container);
+    } catch (error) {
+        console.error('加载分类管理树失败:', error);
+        container.innerHTML = '<div style="color: red; padding: 10px;">加载失败</div>';
+    }
+}
+
+// 渲染分类管理树
+function renderCategoryManagementTree(categories, container, level = 0) {
+    if (level === 0) container.innerHTML = '';
+    
+    categories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'tree-item';
+        item.style.paddingLeft = `${level * 20}px`;
+        item.innerHTML = `
+            <span>${cat.name}</span>
+            <div class="tree-actions">
+                <button class="btn btn-sm" onclick="showAddCategoryModal('${cat.id}')">+</button>
+                <button class="btn btn-sm" onclick="showEditCategoryModal('${cat.id}', '${cat.name}')">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteCategory('${cat.id}')">删除</button>
+            </div>
+        `;
+        container.appendChild(item);
+        
+        if (cat.children && cat.children.length > 0) {
+            renderCategoryManagementTree(cat.children, container, level + 1);
+        }
+    });
 }
 
 // 关闭模态框
 function closeModal(modalId) {
     document.getElementById(modalId)?.classList.remove('active');
+}
+
+// 关闭题目模态框（兼容HTML调用）
+function closeQuestionModal() {
+    closeModal('questionModal');
+}
+
+// 关闭分类模态框（兼容HTML调用）
+function closeCategoryModal() {
+    closeModal('categoryModal');
+}
+
+// 关闭详情模态框（兼容HTML调用）
+function closeDetailModal() {
+    closeModal('detailModal');
+}
+
+// 添加选项行（兼容HTML调用）
+function addOptionRow() {
+    addOptionInput();
+}
+
+// 发送聊天消息（兼容HTML调用）
+function sendChatMessage() {
+    sendQuestion();
 }
 
 // 显示提示
