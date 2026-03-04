@@ -807,46 +807,6 @@ function switchTab(tabId) {
     
     // 更新内容
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(`${tabId}Tab`)?.classList.add('active');
-    
-    // 特殊处理
-    if (tabId === 'qa') {
-        loadPendingQuestions();
-
-// ============ 工具函数 ============
-
-// 绑定事件
-function bindEvents() {
-    // 标签页切换
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabId = tab.dataset.tab;
-            switchTab(tabId);
-        });
-    });
-    
-    // 搜索框回车
-    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchQuestions();
-    });
-    
-    // 聊天输入框回车
-    document.getElementById('chatInput')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendQuestion();
-        }
-    });
-}
-
-// 切换标签页
-function switchTab(tabId) {
-    // 更新导航
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`[data-tab="${tabId}"]`)?.classList.add('active');
-    
-    // 更新内容
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(`tab-${tabId}`)?.classList.add('active');
     
     // 特殊处理

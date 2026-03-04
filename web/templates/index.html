@@ -261,5 +261,21 @@
     <div id="toast" class="toast"></div>
 
     <script src="/static/js/app.js"></script>
+    
+    <!-- 调试信息：如果页面加载异常，请检查浏览器控制台 -->
+    <script>
+        // 页面加载完成后检查 API 连接
+        window.addEventListener('load', () => {
+            console.log('📚 题库管理系统已加载');
+            console.log('🔗 API 基础路径：/api');
+            console.log('📡 健康检查：/health');
+            
+            // 测试 API 连接
+            fetch('/health')
+                .then(r => r.json())
+                .then(data => console.log('✅ API 连接正常:', data))
+                .catch(err => console.error('❌ API 连接失败:', err));
+        });
+    </script>
 </body>
 </html>
