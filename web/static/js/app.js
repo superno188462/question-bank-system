@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function initApp() {
     // 加载分类树
-    await loadCategoryTree();
+    await refreshAllCategoryTrees();
     
     // 加载题目列表
     await loadQuestions();
@@ -183,9 +183,6 @@ function showEditCategoryModal(id, name) {
 }
 
 // 关闭分类模态框
-function closeCategoryModal() {
-    document.getElementById('categoryModal')?.classList.remove('active');
-}
 
 // 保存分类
 async function saveCategory() {
@@ -213,7 +210,10 @@ async function saveCategory() {
         if (!response.ok) throw new Error('保存失败');
         
         closeModal('categoryModal');
-        await loadCategoryTree();
+        
+        // 刷新所有分类树视图
+        await refreshAllCategoryTrees();
+        
         showToast(id ? '分类更新成功' : '分类创建成功', 'success');
     } catch (error) {
         console.error('保存分类失败:', error);
@@ -232,7 +232,7 @@ async function deleteCategory(id) {
         
         if (!response.ok) throw new Error('删除失败');
         
-        await loadCategoryTree();
+        await refreshAllCategoryTrees();
         if (currentCategoryId === id) {
             selectCategory(null, '全部');
         }
@@ -241,6 +241,15 @@ async function deleteCategory(id) {
         console.error('删除分类失败:', error);
         showToast('删除失败: ' + error.message, 'error');
     }
+}
+
+// 刷新所有分类树视图
+async function refreshAllCategoryTrees() {
+    // 刷新题目页面的分类树
+    await loadCategoryTree();
+    
+    // 刷新分类管理页面的分类树
+    await loadCategoryManagementTree();
 }
 
 // ============ 题目管理 ============
