@@ -7,6 +7,7 @@ let categoryTreeData = [];
 let currentQuestions = [];
 let currentPage = 1;
 let totalPages = 1;
+let currentViewQuestionId = null; // 当前查看的题目 ID
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -401,6 +402,9 @@ async function viewQuestion(id) {
         if (!response.ok) throw new Error('加载失败');
         
         const q = await response.json();
+        
+        // 保存当前查看的题目 ID
+        currentViewQuestionId = id;
         
         document.getElementById('detailContent').innerHTML = `
             <div class="question-content">${renderMarkdown(q.content)}</div>
@@ -973,4 +977,15 @@ function highlightCodeBlocks() {
     if (typeof Prism !== 'undefined') {
         Prism.highlightAll();
     }
+}
+
+// 编辑当前查看的题目（从详情页）
+function editCurrentQuestion() {
+    if (!currentViewQuestionId) {
+        showToast('题目 ID 不存在', 'error');
+        return;
+    }
+    // 关闭详情页，打开编辑页
+    closeModal('detailModal');
+    setTimeout(() => editQuestion(currentViewQuestionId), 200);
 }
