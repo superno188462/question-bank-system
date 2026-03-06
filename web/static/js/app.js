@@ -454,7 +454,7 @@ async function viewQuestion(id) {
     }
 }
 
-// AI生成解析
+// AI 生成解析
 async function generateAIExplanation(questionId) {
     showToast('正在生成解析...', 'info');
     
@@ -471,6 +471,10 @@ async function generateAIExplanation(questionId) {
         viewQuestion(questionId);
         showToast('解析生成成功', 'success');
     } catch (error) {
+        console.error('AI 生成解析失败:', error);
+        showToast('生成失败：' + error.message, 'error');
+    }
+}
 
 // AI 生成解析（从表单调用，预留接口）
 async function generateAIExplanationFromForm() {
@@ -484,11 +488,6 @@ async function generateAIExplanationFromForm() {
     // TODO: 实现 AI 生成解析功能
     showToast('AI 解析功能开发中，敬请期待...', 'info');
 }
-        console.error('AI生成解析失败:', error);
-        showToast('生成失败: ' + error.message, 'error');
-    }
-}
-
 // 显示添加题目模态框
 function showAddQuestionModal() {
     document.getElementById('questionModalTitle').textContent = '添加题目';
