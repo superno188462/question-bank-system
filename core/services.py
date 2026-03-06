@@ -116,8 +116,13 @@ class QuestionService:
         return self.get_question_with_tags(question.id)
     
     def get_question(self, question_id: str) -> Optional[Question]:
-        """获取单个题目"""
-        return self.question_repo.get_by_id(question_id)
+        """获取单个题目（包含分类名称）"""
+        question = self.question_repo.get_by_id(question_id)
+        if question and question.category_id:
+            category = self.category_repo.get_by_id(question.category_id)
+            if category:
+                question.category_name = category.name
+        return question
     
     def get_question_with_tags(self, question_id: str) -> Optional[QuestionWithTags]:
         """获取题目及其标签"""
@@ -142,14 +147,24 @@ class QuestionService:
                          keyword: Optional[str] = None,
                          page: int = 1,
                          limit: int = 20) -> Dict[str, Any]:
-        """获取所有题目（支持筛选和分页）"""
-        return self.question_repo.get_all(
+        """获取所有题目（支持筛选和分页，包含分类名称）"""
+        result = self.question_repo.get_all(
             category_id=category_id,
             tag_id=tag_id,
             keyword=keyword,
             page=page,
             limit=limit
         )
+        
+        # 为每个题目添加分类名称
+        if result.get('data'):
+            for question in result['data']:
+                if question.category_id:
+                    category = self.category_repo.get_by_id(question.category_id)
+                    if category:
+                        question.category_name = category.name
+        
+        return result
     
     def update_question(self, question_id: str, update_data: QuestionUpdate) -> Optional[Question]:
         """更新题目"""

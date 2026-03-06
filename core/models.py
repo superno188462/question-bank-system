@@ -107,6 +107,7 @@ class QuestionUpdate(BaseModel):
 class Question(QuestionBase):
     """题目完整模型"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="题目ID")
+    category_name: Optional[str] = Field(None, description="分类名称")
     tags: List[Tag] = Field(default=[], description="标签列表")
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")

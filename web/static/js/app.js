@@ -135,7 +135,7 @@ async function updateBreadcrumb(categoryId) {
     
     // 获取分类路径
     try {
-        const response = await fetch(`${API_BASE}/categories/${categoryId}/path`);
+        const response = await fetch(`${API_BASE}/categories/${categoryId}/breadcrumb`);
         const path = await response.json();
         
         let html = '<span class="breadcrumb-item" onclick="selectCategory(null, \'全部\')">全部题目</span>';
@@ -378,7 +378,7 @@ async function searchQuestions() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/questions/search?q=${encodeURIComponent(query)}`);
+        const response = await fetch(`${API_BASE}/questions/search/keyword?keyword=${encodeURIComponent(query)}`);
         if (!response.ok) throw new Error('搜索失败');
         
         const questions = await response.json();
