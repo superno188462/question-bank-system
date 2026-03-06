@@ -303,7 +303,6 @@ function renderQuestionList(questions) {
     container.innerHTML = questions.map(q => `
         <div class="question-card" data-id="${q.id}">
             <div class="question-header">
-                <div class="question-title">${escapeHtml(q.content.substring(0, 100))}${q.content.length > 100 ? '...' : ''}</div>
                 <div class="question-meta">
                     <span class="badge badge-category">${q.category_name || '未分类'}</span>
                     ${q.tags ? q.tags.map(t => `<span class="badge badge-tag">${escapeHtml(t)}</span>`).join('') : ''}
