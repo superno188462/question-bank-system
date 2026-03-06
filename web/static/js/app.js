@@ -957,17 +957,28 @@ function renderMarkdown(text) {
     // 先转义 HTML
     let html = escapeHtml(text);
     
-    // 处理代码块 ```language ... ```
+    // 1. 提取代码块，用占位符保存（避免换行被替换）
+    const codeBlocks = [];
     html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const index = codeBlocks.length;
         const language = lang || 'text';
-        return `<div class="code-block-wrapper"><pre><code class="language-${language}">${code.trim()}</code></pre></div>`;
+        codeBlocks.push(`<div class="code-block-wrapper"><pre><code class="language-${language}">${code.trim()}</code></pre></div>`);
+        return `%%CODEBLOCK${index}%%`;
     });
     
-    // 处理行内代码 `...`
+    // 2. 处理行内代码 `...`
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
     
-    // 处理换行
+    // 3. 处理换行（此时代码块已被占位符保护）
     html = html.replace(/\n/g, '<br>');
+    
+    // 4. 恢复代码块
+    codeBlocks.forEach((block, index) => {
+        html = html.replace(`%%CODEBLOCK${index}%%`, block);
+    });
+    
+    return html;
+}
     
     return html;
 }
