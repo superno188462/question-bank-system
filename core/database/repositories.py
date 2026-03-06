@@ -5,6 +5,8 @@
 1. 分类仓库
 2. 标签仓库
 3. 题目仓库
+4. 预备题目仓库（AI 提取）
+5. 问答日志仓库（智能问答）
 """
 
 from abc import ABC, abstractmethod
@@ -16,7 +18,8 @@ import uuid
 from core.models import (
     Category, CategoryCreate, CategoryUpdate,
     Tag, TagCreate,
-    Question, QuestionCreate, QuestionUpdate, QuestionWithTags
+    Question, QuestionCreate, QuestionUpdate, QuestionWithTags,
+    StagingQuestion, StagingQuestionCreate, StagingQuestionUpdate
 )
 from core.database.connection import db, transaction
 
@@ -79,7 +82,7 @@ class CategoryRepository(Repository[Category, str]):
         return self.get_by_id(category_id)
     
     def get_by_id(self, category_id: str) -> Optional[Category]:
-        """根据ID获取分类"""
+        """根据 ID 获取分类"""
         sql = "SELECT * FROM categories WHERE id = ?"
         row = db.fetch_one(sql, (category_id,))
         
@@ -198,7 +201,7 @@ class TagRepository(Repository[Tag, str]):
         return self.get_by_id(tag_id)
     
     def get_by_id(self, tag_id: str) -> Optional[Tag]:
-        """根据ID获取标签"""
+        """根据 ID 获取标签"""
         sql = "SELECT * FROM tags WHERE id = ?"
         row = db.fetch_one(sql, (tag_id,))
         
@@ -292,7 +295,7 @@ class QuestionRepository(Repository[Question, str]):
         return self.get_by_id(question_id)
     
     def get_by_id(self, question_id: str) -> Optional[Question]:
-        """根据ID获取题目"""
+        """根据 ID 获取题目"""
         sql = "SELECT * FROM questions WHERE id = ?"
         row = db.fetch_one(sql, (question_id,))
         
@@ -344,7 +347,7 @@ class QuestionRepository(Repository[Question, str]):
             search_term = f"%{keyword}%"
             params.extend([search_term, search_term, search_term])
         
-        # 如果有标签筛选，需要连接question_tags表
+        # 如果有标签筛选，需要连接 question_tags 表
         if tag_id:
             base_sql = """
             SELECT q.* FROM questions q
@@ -542,6 +545,221 @@ class QuestionRepository(Repository[Question, str]):
         """获取指定标签下的题目"""
         result = self.get_all(tag_id=tag_id, page=1, limit=1000)
         return result["data"]
+
+
+class StagingQuestionRepository:
+    """预备题目数据访问（AI 提取）"""
+    
+    @staticmethod
+    def create(question_data: Dict[str, Any]) -> int:
+        """创建预备题目"""
+        sql = """
+        INSERT INTO staging_questions 
+        (source_type, source_file, content, type, options, answer, explanation, 
+         category_id, tags, confidence, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        now = datetime.now().isoformat()
+        
+        result = db.execute(sql, (
+            question_data.get('source_type', 'image'),
+            question_data.get('source_file'),
+            question_data.get('content', ''),
+            question_data.get('type', 'single_choice'),
+            json.dumps(question_data.get('options', [])),
+            question_data.get('answer', ''),
+            question_data.get('explanation', ''),
+            question_data.get('category_id'),
+            json.dumps(question_data.get('tags', [])),
+            question_data.get('confidence', 1.0),
+            'pending',
+            now
+        ))
+        
+        return result.lastrowid
+    
+    @staticmethod
+    def create_batch(questions: List[Dict[str, Any]]) -> List[int]:
+        """批量创建预备题目"""
+        ids = []
+        for q in questions:
+            q_id = StagingQuestionRepository.create(q)
+            ids.append(q_id)
+        return ids
+    
+    @staticmethod
+    def get_all(status: Optional[str] = None, limit: int = 50, offset: int = 0) -> List[Dict]:
+        """获取预备题目列表"""
+        if status:
+            sql = """
+            SELECT * FROM staging_questions 
+            WHERE status = ? 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+            """
+            rows = db.fetch_all(sql, (status, limit, offset))
+        else:
+            sql = """
+            SELECT * FROM staging_questions 
+            ORDER BY created_at DESC 
+            LIMIT ? OFFSET ?
+            """
+            rows = db.fetch_all(sql, (limit, offset))
+        
+        return [StagingQuestionRepository._row_to_dict(row) for row in rows]
+    
+    @staticmethod
+    def get_count(status: Optional[str] = None) -> int:
+        """获取预备题目数量"""
+        if status:
+            sql = "SELECT COUNT(*) as count FROM staging_questions WHERE status = ?"
+            result = db.fetch_one(sql, (status,))
+        else:
+            sql = "SELECT COUNT(*) as count FROM staging_questions"
+            result = db.fetch_one(sql)
+        
+        return result['count'] if result else 0
+    
+    @staticmethod
+    def get_by_id(q_id: int) -> Optional[Dict]:
+        """根据 ID 获取预备题目"""
+        sql = "SELECT * FROM staging_questions WHERE id = ?"
+        row = db.fetch_one(sql, (q_id,))
+        
+        if row:
+            return StagingQuestionRepository._row_to_dict(row)
+        return None
+    
+    @staticmethod
+    def update(q_id: int, update_data: Dict[str, Any]) -> bool:
+        """更新预备题目"""
+        fields = []
+        values = []
+        
+        allowed_fields = ['content', 'type', 'options', 'answer', 'explanation', 
+                         'category_id', 'tags', 'status', 'reviewed_at', 'reviewed_by']
+        
+        for field in allowed_fields:
+            if field in update_data:
+                fields.append(f"{field} = ?")
+                value = update_data[field]
+                if field in ['options', 'tags'] and isinstance(value, list):
+                    value = json.dumps(value)
+                values.append(value)
+        
+        if not fields:
+            return False
+        
+        values.append(q_id)
+        sql = f"UPDATE staging_questions SET {', '.join(fields)} WHERE id = ?"
+        db.execute(sql, values)
+        return True
+    
+    @staticmethod
+    def approve(q_id: int, reviewed_by: str = "system") -> bool:
+        """审核通过预备题目"""
+        return StagingQuestionRepository.update(q_id, {
+            'status': 'approved',
+            'reviewed_at': datetime.now().isoformat(),
+            'reviewed_by': reviewed_by
+        })
+    
+    @staticmethod
+    def reject(q_id: int, reviewed_by: str = "system") -> bool:
+        """审核拒绝预备题目"""
+        return StagingQuestionRepository.update(q_id, {
+            'status': 'rejected',
+            'reviewed_at': datetime.now().isoformat(),
+            'reviewed_by': reviewed_by
+        })
+    
+    @staticmethod
+    def delete(q_id: int) -> bool:
+        """删除预备题目"""
+        sql = "DELETE FROM staging_questions WHERE id = ?"
+        db.execute(sql, (q_id,))
+        return True
+    
+    @staticmethod
+    def _row_to_dict(row: Dict) -> Dict:
+        """将数据库行转换为字典"""
+        return {
+            'id': row['id'],
+            'source_type': row['source_type'],
+            'source_file': row['source_file'],
+            'content': row['content'],
+            'type': row['type'],
+            'options': json.loads(row['options']) if row['options'] else [],
+            'answer': row['answer'],
+            'explanation': row['explanation'],
+            'category_id': row['category_id'],
+            'tags': json.loads(row['tags']) if row['tags'] else [],
+            'confidence': row['confidence'],
+            'status': row['status'],
+            'created_at': row['created_at'],
+            'reviewed_at': row['reviewed_at'],
+            'reviewed_by': row['reviewed_by']
+        }
+
+
+class QALogRepository:
+    """问答日志数据访问（智能问答）"""
+    
+    @staticmethod
+    def create(log_data: Dict[str, Any]) -> int:
+        """创建问答日志"""
+        sql = """
+        INSERT INTO qa_logs 
+        (user_question, ai_answer, related_question_ids, suggested_question_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """
+        
+        now = datetime.now().isoformat()
+        
+        result = db.execute(sql, (
+            log_data.get('user_question', ''),
+            log_data.get('ai_answer', ''),
+            json.dumps(log_data.get('related_question_ids', [])),
+            log_data.get('suggested_question_id'),
+            now
+        ))
+        
+        return result.lastrowid
+    
+    @staticmethod
+    def get_all(limit: int = 50, offset: int = 0) -> List[Dict]:
+        """获取问答日志列表"""
+        sql = """
+        SELECT * FROM qa_logs 
+        ORDER BY created_at DESC 
+        LIMIT ? OFFSET ?
+        """
+        rows = db.fetch_all(sql, (limit, offset))
+        
+        return [QALogRepository._row_to_dict(row) for row in rows]
+    
+    @staticmethod
+    def get_by_id(log_id: int) -> Optional[Dict]:
+        """根据 ID 获取问答日志"""
+        sql = "SELECT * FROM qa_logs WHERE id = ?"
+        row = db.fetch_one(sql, (log_id,))
+        
+        if row:
+            return QALogRepository._row_to_dict(row)
+        return None
+    
+    @staticmethod
+    def _row_to_dict(row: Dict) -> Dict:
+        """将数据库行转换为字典"""
+        return {
+            'id': row['id'],
+            'user_question': row['user_question'],
+            'ai_answer': row['ai_answer'],
+            'related_question_ids': json.loads(row['related_question_ids']) if row['related_question_ids'] else [],
+            'suggested_question_id': row['suggested_question_id'],
+            'created_at': row['created_at']
+        }
 
 
 # 创建仓库实例

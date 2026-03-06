@@ -13,7 +13,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from web.api import categories, tags, questions, qa
+from web.api import categories, tags, questions, qa, agent
 from web.config import settings
 from core.database.migrations import migrate_database
 
@@ -56,6 +56,7 @@ def create_web_app() -> FastAPI:
     app.include_router(tags.router, prefix="/api", tags=["标签管理"])
     app.include_router(questions.router, prefix="/api", tags=["题目管理"])
     app.include_router(qa.router, prefix="/api", tags=["智能问答"])
+    app.include_router(agent.router, prefix="/api", tags=["AI Agent"])
     
     # 主页 - 返回管理界面
     @app.get("/", response_class=HTMLResponse)

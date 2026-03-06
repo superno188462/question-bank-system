@@ -855,3 +855,26 @@ div.code-toolbar > .toolbar button:hover {
 .code-block-wrapper {
     margin: 15px 0;
 }
+
+/* AI 上传模态框 */
+.radio-label {
+    transition: all 0.2s;
+}
+
+.radio-label:hover {
+    border-color: var(--primary) !important;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.radio-label input[type="radio"]:checked + div {
+    color: var(--primary);
+}
+
+.btn-success {
+    background: var(--secondary);
+    color: white;
+}
+
+.btn-success:hover {
+    background: #38a169;
+}

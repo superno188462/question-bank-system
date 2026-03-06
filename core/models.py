@@ -145,6 +145,98 @@ class SuccessResponse(BaseModel):
     message: Optional[str] = Field(None, description="成功信息")
 
 
+# ========== AI Agent 相关模型 ==========
+
+class StagingQuestionBase(BaseModel):
+    """预备题目基础模型"""
+    source_type: str = Field(..., description="来源类型：image|document|chat")
+    source_file: Optional[str] = Field(None, description="原始文件名")
+    content: str = Field(..., min_length=1, description="题干内容")
+    type: str = Field(..., description="题型：single_choice|multiple_choice|fill_blank|judgment|short_answer")
+    options: Optional[List[str]] = Field(default=[], description="选项列表")
+    answer: str = Field(..., description="正确答案")
+    explanation: str = Field(default="", description="解析")
+    category_id: Optional[str] = Field(None, description="分类 ID")
+    tags: Optional[List[str]] = Field(default=[], description="标签列表")
+    confidence: float = Field(default=1.0, ge=0, le=1, description="AI 置信度")
+
+
+class StagingQuestionCreate(StagingQuestionBase):
+    """创建预备题目请求模型"""
+    pass
+
+
+class StagingQuestionUpdate(BaseModel):
+    """更新预备题目请求模型"""
+    content: Optional[str] = Field(None, description="题干内容")
+    type: Optional[str] = Field(None, description="题型")
+    options: Optional[List[str]] = Field(None, description="选项列表")
+    answer: Optional[str] = Field(None, description="正确答案")
+    explanation: Optional[str] = Field(None, description="解析")
+    category_id: Optional[str] = Field(None, description="分类 ID")
+    tags: Optional[List[str]] = Field(None, description="标签列表")
+    status: Optional[str] = Field(None, description="状态：pending|approved|rejected")
+
+
+class StagingQuestion(StagingQuestionBase):
+    """预备题目完整模型"""
+    id: int = Field(..., description="题目 ID")
+    status: str = Field(default="pending", description="状态：pending|approved|rejected")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    reviewed_at: Optional[datetime] = Field(None, description="审核时间")
+    reviewed_by: Optional[str] = Field(None, description="审核人")
+    
+    class Config:
+        from_attributes = True
+
+
+class BatchExtractRequest(BaseModel):
+    """批量提取请求模型"""
+    file_paths: List[str] = Field(..., description="文件路径列表")
+    source_type: str = Field(..., description="来源类型：image|document")
+
+
+class ExtractResponse(BaseModel):
+    """提取响应模型"""
+    success: bool = Field(..., description="是否成功")
+    questions: List[StagingQuestion] = Field(default=[], description="提取的题目列表")
+    total_count: int = Field(..., description="题目总数")
+    source_type: str = Field(..., description="来源类型")
+    source_files: List[str] = Field(default=[], description="源文件列表")
+    confidence: float = Field(default=0, description="平均置信度")
+    error: Optional[str] = Field(None, description="错误信息")
+
+
+class ExplanationGenerateRequest(BaseModel):
+    """解析生成请求模型"""
+    question_id: Optional[str] = Field(None, description="题目 ID（从题库读取）")
+    content: Optional[str] = Field(None, description="题干内容（直接传入）")
+    options: Optional[List[str]] = Field(None, description="选项列表")
+    answer: Optional[str] = Field(None, description="正确答案")
+    type: Optional[str] = Field(None, description="题型")
+
+
+class ExplanationGenerateResponse(BaseModel):
+    """解析生成响应模型"""
+    success: bool = Field(..., description="是否成功")
+    explanation: Optional[str] = Field(None, description="生成的解析")
+    error: Optional[str] = Field(None, description="错误信息")
+
+
+class QAAskRequest(BaseModel):
+    """智能问答请求模型"""
+    question: str = Field(..., min_length=1, description="用户问题")
+    category_id: Optional[str] = Field(None, description="限定分类")
+    top_k: int = Field(default=5, description="返回相关题目数量")
+
+
+class QAAskResponse(BaseModel):
+    """智能问答响应模型"""
+    answer: str = Field(..., description="AI 回答")
+    related_questions: List[dict] = Field(default=[], description="相关题目")
+    suggested_question: Optional[dict] = Field(None, description="建议的新题目")
+
+
 # 预定义的错误代码
 class ErrorCodes:
     """错误代码常量"""

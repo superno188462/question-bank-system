@@ -997,3 +997,255 @@ function editCurrentQuestion() {
     closeModal('detailModal');
     setTimeout(() => editQuestion(currentViewQuestionId), 200);
 }
+
+// ========== AI 上传功能 ==========
+
+// 显示 AI 上传模态框
+function showAIUploadModal() {
+    document.getElementById('aiUploadModal').style.display = 'flex';
+}
+
+// 关闭 AI 上传模态框
+function closeAIUploadModal() {
+    document.getElementById('aiUploadModal').style.display = 'none';
+    document.getElementById('aiUploadFiles').value = '';
+    document.getElementById('aiUploadProgress').style.display = 'none';
+}
+
+// 切换提取类型
+function toggleExtractType() {
+    const type = document.querySelector('input[name="extractType"]:checked').value;
+    const fileInput = document.getElementById('aiUploadFiles');
+    
+    if (type === 'image') {
+        fileInput.accept = '.png,.jpg,.jpeg,.gif,.webp';
+    } else {
+        fileInput.accept = '.pdf,.doc,.docx,.txt,.md';
+    }
+}
+
+// 上传并提取
+async function uploadAndExtract() {
+    const fileInput = document.getElementById('aiUploadFiles');
+    const files = fileInput.files;
+    
+    if (!files || files.length === 0) {
+        showToast('请选择要上传的文件', 'error');
+        return;
+    }
+    
+    const extractType = document.querySelector('input[name="extractType"]:checked').value;
+    const progressDiv = document.getElementById('aiUploadProgress');
+    const statusSpan = document.getElementById('aiUploadStatus');
+    const detailDiv = document.getElementById('aiUploadDetail');
+    
+    progressDiv.style.display = 'block';
+    statusSpan.textContent = '正在上传并提取...';
+    detailDiv.textContent = `文件：${Array.from(files).map(f => f.name).join(', ')}`;
+    
+    const formData = new FormData();
+    for (let file of files) {
+        formData.append('files', file);
+    }
+    
+    try {
+        const endpoint = extractType === 'image' ? '/api/agent/extract/image' : '/api/agent/extract/document';
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const count = result.data.total_count;
+            statusSpan.textContent = `✅ 成功提取 ${count} 道题目！`;
+            detailDiv.textContent = '已保存到预备题目，请前往"预备题目"标签页审核';
+            
+            setTimeout(() => {
+                closeAIUploadModal();
+                showToast(`成功提取 ${count} 道题目`, 'success');
+                // 切换到预备题目标签页
+                switchTab('pending');
+                loadPendingQuestions();
+            }, 2000);
+        } else {
+            throw new Error(result.detail || '提取失败');
+        }
+    } catch (error) {
+        statusSpan.textContent = '❌ 提取失败';
+        detailDiv.textContent = error.message;
+        showToast(`提取失败：${error.message}`, 'error');
+    }
+}
+
+// ========== 预备题目管理 ==========
+
+// 加载预备题目
+async function loadPendingQuestions() {
+    const tbody = document.getElementById('pendingTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px;"><div class="loading-spinner"></div></td></tr>';
+    
+    try {
+        const response = await fetch('/api/agent/staging?status=pending&page=1&limit=50');
+        const result = await response.json();
+        
+        if (result.success) {
+            const questions = result.data.questions;
+            
+            if (questions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-light);">暂无预备题目</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = questions.map(q => `
+                <tr>
+                    <td style="max-width: 400px;">
+                        <div style="font-weight: 500; margin-bottom: 5px;">${escapeHtml(q.content.substring(0, 100))}${q.content.length > 100 ? '...' : ''}</div>
+                        <div style="font-size: 12px; color: var(--text-light);">
+                            <span class="badge" style="background: var(--primary);">${q.type}</span>
+                            ${q.source_file ? `<span class="badge" style="background: var(--secondary);">📁 ${escapeHtml(q.source_file)}</span>` : ''}
+                            <span class="badge" style="background: ${q.confidence >= 0.8 ? 'var(--success)' : 'var(--warning)'}">置信度：${(q.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                    </td>
+                    <td>${q.source_type === 'image' ? '📷 图片' : '📄 文档'}</td>
+                    <td style="font-size: 13px; color: var(--text-light);">${new Date(q.created_at).toLocaleString('zh-CN')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewPendingQuestion(${q.id})" style="margin-right: 5px;">查看</button>
+                        <button class="btn btn-sm btn-success" onclick="approvePendingQuestion(${q.id})" style="margin-right: 5px;">✓ 通过</button>
+                        <button class="btn btn-sm btn-danger" onclick="rejectPendingQuestion(${q.id})">✗ 拒绝</button>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            throw new Error(result.detail || '加载失败');
+        }
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--danger);">加载失败：${error.message}</td></tr>`;
+    }
+}
+
+// 查看预备题目
+async function viewPendingQuestion(qId) {
+    try {
+        const response = await fetch(`/api/agent/staging/${qId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const q = result.data;
+            
+            const content = `
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <span class="badge" style="background: var(--primary);">${q.type}</span>
+                        <span class="badge" style="background: var(--secondary);">来源：${q.source_type}</span>
+                        ${q.source_file ? `<span class="badge" style="background: var(--secondary);">文件：${escapeHtml(q.source_file)}</span>` : ''}
+                        <span class="badge" style="background: ${q.confidence >= 0.8 ? 'var(--success)' : 'var(--warning)'}">置信度：${(q.confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <strong>题干：</strong>
+                        <div style="margin-top: 10px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                            ${renderMarkdown(q.content)}
+                        </div>
+                    </div>
+                    
+                    ${q.options && q.options.length > 0 ? `
+                    <div style="margin-bottom: 15px;">
+                        <strong>选项：</strong>
+                        <div style="margin-top: 10px;">
+                            ${q.options.map((opt, i) => `
+                                <div style="padding: 8px 12px; margin: 5px 0; border-radius: 4px; background: ${opt === q.answer ? 'var(--success-light)' : 'var(--bg-secondary)'}; border-left: 3px solid ${opt === q.answer ? 'var(--success)' : 'var(--border)'};">
+                                    ${String.fromCharCode(65 + i)}. ${escapeHtml(opt)}
+                                    ${opt === q.answer ? ' ✓ 正确答案' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${q.explanation ? `
+                    <div style="margin-bottom: 15px;">
+                        <strong>解析：</strong>
+                        <div style="margin-top: 10px; padding: 15px; background: var(--bg-secondary); border-radius: 8px;">
+                            ${renderMarkdown(q.explanation)}
+                        </div>
+                    </div>
+                    ` : '<div style="margin-bottom: 15px; color: var(--text-light);">暂无解析</div>'}
+                </div>
+            `;
+            
+            document.getElementById('detailContent').innerHTML = content;
+            document.getElementById('detailModalTitle').textContent = '预备题目详情';
+            document.getElementById('detailEditBtn').style.display = 'inline-block';
+            document.getElementById('detailEditBtn').textContent = '编辑并入库';
+            
+            // 保存当前查看的题目 ID
+            currentViewQuestionId = qId;
+            
+            document.getElementById('detailModal').style.display = 'flex';
+        } else {
+            throw new Error(result.detail || '加载失败');
+        }
+    } catch (error) {
+        showToast(`加载失败：${error.message}`, 'error');
+    }
+}
+
+// 通过预备题目
+async function approvePendingQuestion(qId) {
+    if (!confirm('确认将此题目审核通过并入库？')) return;
+    
+    try {
+        const formData = new FormData();
+        formData.append('reviewed_by', 'user');
+        
+        const response = await fetch(`/api/agent/staging/${qId}/approve`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('审核通过', 'success');
+            loadPendingQuestions();
+        } else {
+            throw new Error(result.detail || '操作失败');
+        }
+    } catch (error) {
+        showToast(`操作失败：${error.message}`, 'error');
+    }
+}
+
+// 拒绝预备题目
+async function rejectPendingQuestion(qId) {
+    if (!confirm('确认拒绝此题目？')) return;
+    
+    try {
+        const formData = new FormData();
+        formData.append('reviewed_by', 'user');
+        
+        const response = await fetch(`/api/agent/staging/${qId}/reject`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('已拒绝', 'success');
+            loadPendingQuestions();
+        } else {
+            throw new Error(result.detail || '操作失败');
+        }
+    } catch (error) {
+        showToast(`操作失败：${error.message}`, 'error');
+    }
+}
+
+// 编辑预备题目并入库（TODO：实现）
+function editAndImportPendingQuestion(qId) {
+    showToast('编辑入库功能开发中...', 'info');
+}

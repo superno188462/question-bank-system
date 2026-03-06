@@ -20,8 +20,8 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=20260306-13">
-    <script src="/static/js/app.js?v=20260306-13"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260307-1">
+    <script src="/static/js/app.js?v=20260307-1"></script>
 </head>
 <body>
     <div class="container">
@@ -62,6 +62,7 @@
                                 <input type="text" id="searchInput" class="search-input" placeholder="搜索题目...">
                                 <button class="btn btn-primary" onclick="searchQuestions()">🔍 搜索</button>
                             </div>
+                            <button class="btn btn-success" onclick="showAIUploadModal()">🤖 AI 提取</button>
                             <button class="btn btn-secondary" onclick="showAddQuestionModal()">➕ 添加题目</button>
                         </div>
                     </div>
@@ -269,6 +270,53 @@
             <div class="modal-footer">
                 <button class="btn" onclick="closeDetailModal()">关闭</button>
                 <button class="btn btn-primary" id="detailEditBtn" onclick="editCurrentQuestion()">编辑</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI 上传模态框 -->
+    <div id="aiUploadModal" class="modal-overlay">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">🤖 AI 智能提取题目</h3>
+                <button class="modal-close" onclick="closeAIUploadModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">选择提取方式</label>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <label class="radio-label" style="flex: 1; padding: 15px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center;">
+                            <input type="radio" name="extractType" value="image" checked onchange="toggleExtractType()">
+                            <div style="font-size: 24px; margin-bottom: 5px;">📷</div>
+                            <div>图片提取</div>
+                            <div style="font-size: 12px; color: var(--text-light); margin-top: 5px;">支持 PNG、JPG 等</div>
+                        </label>
+                        <label class="radio-label" style="flex: 1; padding: 15px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; text-align: center;">
+                            <input type="radio" name="extractType" value="document" onchange="toggleExtractType()">
+                            <div style="font-size: 24px; margin-bottom: 5px;">📄</div>
+                            <div>文档提取</div>
+                            <div style="font-size: 12px; color: var(--text-light); margin-top: 5px;">支持 PDF、Word、TXT</div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">上传文件（支持多选）</label>
+                    <input type="file" id="aiUploadFiles" class="form-input" multiple accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.txt,.md">
+                    <p class="form-hint">可一次上传多个文件批量提取</p>
+                </div>
+
+                <div id="aiUploadProgress" style="display: none; margin-top: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="loading-spinner" style="width: 20px; height: 20px;"></div>
+                        <span id="aiUploadStatus">正在提取题目...</span>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 13px; color: var(--text-light);" id="aiUploadDetail"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeAIUploadModal()">取消</button>
+                <button class="btn btn-primary" onclick="uploadAndExtract()">🚀 开始提取</button>
             </div>
         </div>
     </div>
