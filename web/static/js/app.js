@@ -979,9 +979,6 @@ function renderMarkdown(text) {
     
     return html;
 }
-    
-    return html;
-}
 
 // 高亮代码块（调用 Prism.js）
 function highlightCodeBlocks() {
