@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from web.api import categories, tags, questions, qa
 from web.config import settings
+from core.database.migrations import migrate_database
 
 # 获取 web 目录路径
 WEB_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,10 @@ def create_web_app() -> FastAPI:
     """
     创建 Web 应用实例
     """
+    # 自动执行数据库迁移
+    print("🔧 初始化数据库...")
+    migrate_database(auto=True)
+    
     app = FastAPI(
         title=settings.APP_NAME,
         description="题库管理系统 - Web 管理界面",

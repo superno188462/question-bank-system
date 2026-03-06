@@ -5,10 +5,124 @@
 1. 创建数据库表结构
 2. 初始化默认数据
 3. 执行数据迁移
+4. 自动检测并应用表结构变更
 """
 
 import os
+import json
+from datetime import datetime
 from core.database.connection import db
+
+# 迁移版本号
+MIGRATION_VERSION = "20260306"
+
+# 期望的表结构定义
+EXPECTED_SCHEMA = {
+    "questions": {
+        "columns": {
+            "id": "TEXT",
+            "content": "TEXT",
+            "options": "TEXT",
+            "answer": "TEXT",
+            "explanation": "TEXT",
+            "category_id": "TEXT",
+            "created_at": "TEXT",
+            "updated_at": "TEXT"
+        }
+    },
+    "categories": {
+        "columns": {
+            "id": "TEXT",
+            "name": "TEXT",
+            "description": "TEXT",
+            "parent_id": "TEXT",
+            "created_at": "TEXT",
+            "updated_at": "TEXT"
+        }
+    },
+    "tags": {
+        "columns": {
+            "id": "TEXT",
+            "name": "TEXT",
+            "color": "TEXT",
+            "created_at": "TEXT"
+        }
+    },
+    "question_tags": {
+        "columns": {
+            "question_id": "TEXT",
+            "tag_id": "TEXT"
+        }
+    },
+    "migrations": {
+        "columns": {
+            "version": "TEXT",
+            "applied_at": "TEXT",
+            "description": "TEXT"
+        }
+    }
+}
+
+
+def get_current_schema():
+    """获取当前数据库表结构"""
+    schema = {}
+    tables = db.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")
+    
+    for table in tables:
+        table_name = table['name']
+        if table_name.startswith('sqlite_'):
+            continue
+            
+        columns = db.fetch_all(f"PRAGMA table_info({table_name})")
+        schema[table_name] = {
+            "columns": {col['name']: col['type'] for col in columns}
+        }
+    
+    return schema
+
+
+def ensure_migrations_table():
+    """确保迁移记录表存在"""
+    sql = """
+    CREATE TABLE IF NOT EXISTS migrations (
+        version TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL,
+        description TEXT
+    )
+    """
+    db.execute(sql)
+
+
+def get_applied_migrations():
+    """获取已应用的迁移版本"""
+    try:
+        result = db.fetch_all("SELECT version FROM migrations ORDER BY version")
+        return [r['version'] for r in result]
+    except:
+        return []
+
+
+def record_migration(version: str, description: str = ""):
+    """记录已应用的迁移"""
+    sql = """
+    INSERT OR REPLACE INTO migrations (version, applied_at, description)
+    VALUES (?, ?, ?)
+    """
+    db.execute(sql, (version, datetime.now().isoformat(), description))
+
+
+def add_column_if_not_exists(table: str, column: str, column_type: str, default: str = None):
+    """如果列不存在则添加"""
+    schema = get_current_schema()
+    if table in schema and column not in schema[table].get('columns', {}):
+        sql = f"ALTER TABLE {table} ADD COLUMN {column} {column_type}"
+        if default is not None:
+            sql += f" DEFAULT {default}"
+        db.execute(sql)
+        print(f"  ✅ 添加列：{table}.{column}")
+        return True
+    return False
 
 
 def create_tables():
@@ -160,11 +274,38 @@ def init_default_data():
         return False
 
 
-def migrate_database():
-    """执行数据库迁移"""
+def apply_schema_migrations():
+    """应用表结构变更迁移"""
+    print("检查表结构变更...")
+    
+    # 确保迁移记录表存在
+    ensure_migrations_table()
+    
+    # 检查并添加 questions 表的 options 列默认值（兼容旧数据）
+    add_column_if_not_exists("questions", "options", "TEXT", "DEFAULT '[]'")
+    
+    # 检查并添加 category_name 列（如果需要）
+    # add_column_if_not_exists("questions", "category_name", "TEXT")
+    
+    print("✅ 表结构检查完成")
+
+
+def migrate_database(auto: bool = True):
+    """
+    执行数据库迁移
+    
+    Args:
+        auto: 是否自动模式（静默执行，不报错）
+    """
     
     try:
-        print("开始数据库迁移...")
+        if auto:
+            print("🔄 自动检查数据库迁移...")
+        else:
+            print("开始数据库迁移...")
+        
+        # 确保迁移记录表存在
+        ensure_migrations_table()
         
         # 检查表是否存在
         tables = ["categories", "tags", "questions", "question_tags"]
@@ -175,22 +316,42 @@ def migrate_database():
                 missing_tables.append(table)
         
         if missing_tables:
-            print(f"发现缺失的表: {missing_tables}")
+            print(f"发现缺失的表：{missing_tables}")
             if create_tables():
                 print("✅ 缺失的表已创建")
             else:
                 print("❌ 创建表失败")
-                return False
+                if not auto:
+                    return False
+        
+        # 应用表结构变更
+        apply_schema_migrations()
         
         # 初始化默认数据
         init_default_data()
         
-        print("✅ 数据库迁移完成")
+        # 记录当前迁移版本
+        applied = get_applied_migrations()
+        if MIGRATION_VERSION not in applied:
+            record_migration(MIGRATION_VERSION, "当前版本")
+            print(f"✅ 迁移版本：{MIGRATION_VERSION}")
+        
+        if auto:
+            print("✅ 数据库检查完成")
+        else:
+            print("✅ 数据库迁移完成")
+        
         return True
         
     except Exception as e:
-        print(f"❌ 数据库迁移失败: {e}")
-        return False
+        error_msg = f"❌ 数据库迁移失败：{e}"
+        if auto:
+            print(error_msg)
+            print("⚠️  应用将继续运行，但数据库功能可能受限")
+            return True  # 自动模式下不阻止启动
+        else:
+            print(error_msg)
+            return False
 
 
 def backup_database(backup_path: str = "question_bank_backup.db"):

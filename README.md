@@ -113,10 +113,29 @@ bash test/pre_commit_validate.sh
 ### Git自动验证
 每次提交前会自动运行验证，确保代码质量。
 
+## 🗄️ 数据库迁移
+
+系统支持自动数据库迁移，`git pull` 后无需手动操作：
+
+### 自动迁移
+应用启动时会自动检测并应用数据库迁移，无需手动干预。
+
+### 手动迁移（可选）
+```bash
+# 查看迁移状态
+python migrate.py --status
+
+# 执行迁移
+python migrate.py
+
+# 备份后迁移
+python migrate.py --backup
+```
+
 ## 🛠️ 技术栈
 
 - **后端**: Python + FastAPI
-- **数据库**: SQLite
+- **数据库**: SQLite + 自动迁移
 - **包管理**: uv（推荐）或 pip
 - **部署**: 一键脚本，支持多平台
 - **验证**: 完整的自动化验证脚本
