@@ -272,6 +272,7 @@ async function loadQuestions(categoryId = null, page = 1) {
         totalPages = data.pages || 1;
         
         renderQuestionList(currentQuestions);
+        highlightCodeBlocks(); // 高亮代码块
         renderPagination();
     } catch (error) {
         console.error('加载题目失败:', error);
