@@ -308,7 +308,7 @@ function renderQuestionList(questions) {
                     ${q.tags ? q.tags.map(t => `<span class="badge badge-tag">${escapeHtml(t)}</span>`).join('') : ''}
                 </div>
             </div>
-            <div class="question-content">${escapeHtml(q.content)}</div>
+            <div class="question-content">${renderMarkdown(q.content)}</div>
             ${renderOptionsPreview(q.options, q.answer)}
             <div class="question-actions">
                 <button class="btn btn-sm btn-primary" onclick="viewQuestion('${q.id}')">查看详情</button>
@@ -403,7 +403,7 @@ async function viewQuestion(id) {
         const q = await response.json();
         
         document.getElementById('detailContent').innerHTML = `
-            <div class="question-content">${escapeHtml(q.content)}</div>
+            <div class="question-content">${renderMarkdown(q.content)}</div>
             ${q.options && q.options.length > 0 ? `
                 <div class="question-options">
                     <strong>选项：</strong>
@@ -441,6 +441,8 @@ async function viewQuestion(id) {
             </div>
         `;
         
+        // 高亮代码块
+        setTimeout(() => highlightCodeBlocks(), 100);
         document.getElementById('detailModal').classList.add('active');
     } catch (error) {
         console.error('加载题目详情失败:', error);
@@ -949,3 +951,32 @@ document.addEventListener('click', (e) => {
         e.target.classList.remove('active');
     }
 });
+
+// 渲染 Markdown 代码块（支持语法高亮）
+function renderMarkdown(text) {
+    if (!text) return '';
+    
+    // 先转义 HTML
+    let html = escapeHtml(text);
+    
+    // 处理代码块 ```language ... ```
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const language = lang || 'text';
+        return `<div class="code-block-wrapper"><pre><code class="language-${language}">${code.trim()}</code></pre></div>`;
+    });
+    
+    // 处理行内代码 `...`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // 处理换行
+    html = html.replace(/\n/g, '<br>');
+    
+    return html;
+}
+
+// 高亮代码块（调用 Prism.js）
+function highlightCodeBlocks() {
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightAll();
+    }
+}
