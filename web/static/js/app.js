@@ -479,12 +479,12 @@ function showAddQuestionModal() {
     // 加载分类选择器
     loadCategorySelect();
     
-    // 清空选项
+    // 清空选项（填空题只需一个选项，选择题可添加多个）
     document.getElementById('optionsEditor').innerHTML = `
         <div class="option-row">
-            <input type="text" class="option-input" placeholder="选项 A" data-index="0">
+            <input type="text" class="option-input" placeholder="选项 A / 填空题答案" data-index="0">
             <label class="option-correct">
-                <input type="radio" name="correctOption" value="0"> 正确答案
+                <input type="radio" name="correctOption" value="0" checked> 正确答案
             </label>
         </div>
         <div class="option-row">
@@ -548,7 +548,6 @@ async function editQuestion(id) {
         document.getElementById('questionModalTitle').textContent = '编辑题目';
         document.getElementById('questionId').value = q.id;
         document.getElementById('questionContent').value = q.content;
-        document.getElementById('questionAnswer').value = q.answer;
         document.getElementById('questionExplanation').value = q.explanation || '';
         
         // 加载并设置分类
@@ -574,6 +573,17 @@ async function editQuestion(id) {
                 `;
                 container.appendChild(row);
             });
+        } else {
+            // 填空题：只有一个答案选项
+            container.innerHTML = `
+                <div class="option-row">
+                    <input type="text" class="option-input" placeholder="填空题答案" 
+                           data-index="0" value="${escapeHtml(q.answer)}">
+                    <label class="option-correct">
+                        <input type="radio" name="correctOption" value="0" checked> 正确答案
+                    </label>
+                </div>
+            `;
         }
         
         document.getElementById('questionModal').classList.add('active');
@@ -594,16 +604,12 @@ async function saveQuestion() {
     const optionInputs = document.querySelectorAll('.option-input');
     const options = Array.from(optionInputs).map(input => input.value.trim()).filter(v => v);
     
-    // 获取正确答案
+    // 获取正确答案（从选中的选项）
     const correctIndex = document.querySelector('input[name="correctOption"]:checked')?.value;
-    const answer = correctIndex !== undefined ? options[parseInt(correctIndex)] : '';
+    const answer = correctIndex !== undefined && options.length > 0 ? options[parseInt(correctIndex)] : '';
     
     if (!content) {
         showToast('请输入题干', 'error');
-        return;
-    }
-    if (!answer) {
-        showToast('请设置正确答案', 'error');
         return;
     }
     if (!categoryId) {
@@ -613,7 +619,7 @@ async function saveQuestion() {
     
     const data = {
         content,
-        options,
+        options: options.length > 0 ? options : undefined,  // 填空题不传 options
         answer,
         explanation: explanation || '',
         category_id: categoryId
