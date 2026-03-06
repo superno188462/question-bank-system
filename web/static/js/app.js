@@ -476,7 +476,7 @@ function showAddQuestionModal() {
     loadCategorySelect();
     
     // 清空选项
-    document.getElementById('optionsContainer').innerHTML = `
+    document.getElementById('optionsEditor').innerHTML = `
         <div class="option-row">
             <input type="text" class="option-input" placeholder="选项 A" data-index="0">
             <label class="option-correct">
@@ -517,7 +517,7 @@ async function loadCategorySelect() {
 
 // 添加选项输入框
 function addOptionInput() {
-    const container = document.getElementById('optionsContainer');
+    const container = document.getElementById('optionsEditor');
     const index = container.querySelectorAll('.option-row').length;
     
     const row = document.createElement('div');
@@ -552,7 +552,7 @@ async function editQuestion(id) {
         document.getElementById('questionCategory').value = q.category_id || '';
         
         // 加载选项
-        const container = document.getElementById('optionsContainer');
+        const container = document.getElementById('optionsEditor');
         container.innerHTML = '';
         
         if (q.options && q.options.length > 0) {
