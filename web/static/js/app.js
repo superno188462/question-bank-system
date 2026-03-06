@@ -381,9 +381,13 @@ async function searchQuestions() {
         const response = await fetch(`${API_BASE}/questions/search/keyword?keyword=${encodeURIComponent(query)}`);
         if (!response.ok) throw new Error('搜索失败');
         
-        const questions = await response.json();
-        renderQuestionList(questions);
-        document.getElementById('pagination').innerHTML = '';
+        const result = await response.json();
+        currentQuestions = result.data || [];
+        currentPage = result.page || 1;
+        totalPages = result.pages || 1;
+        
+        renderQuestionList(currentQuestions);
+        renderPagination();
     } catch (error) {
         console.error('搜索失败:', error);
         showToast('搜索失败', 'error');
@@ -398,7 +402,7 @@ async function viewQuestion(id) {
         
         const q = await response.json();
         
-        document.getElementById('viewQuestionContent').innerHTML = `
+        document.getElementById('detailContent').innerHTML = `
             <div class="question-content">${escapeHtml(q.content)}</div>
             ${q.options && q.options.length > 0 ? `
                 <div class="question-options">
@@ -437,7 +441,7 @@ async function viewQuestion(id) {
             </div>
         `;
         
-        document.getElementById('viewQuestionModal').classList.add('active');
+        document.getElementById('detailModal').classList.add('active');
     } catch (error) {
         console.error('加载题目详情失败:', error);
         showToast('加载失败', 'error');
