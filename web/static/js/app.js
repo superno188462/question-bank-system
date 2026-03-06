@@ -945,12 +945,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// 点击模态框外部关闭
-document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal-overlay')) {
-        e.target.classList.remove('active');
-    }
-});
 
 // 渲染 Markdown 代码块（支持语法高亮）
 function renderMarkdown(text) {
