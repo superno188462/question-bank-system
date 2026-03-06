@@ -1249,3 +1249,179 @@ async function rejectPendingQuestion(qId) {
 function editAndImportPendingQuestion(qId) {
     showToast('编辑入库功能开发中...', 'info');
 }
+
+// ========== AI Agent 配置管理 ==========
+
+// 切换标签页时加载设置
+const originalSwitchTab = switchTab;
+switchTab = function(tabId) {
+    originalSwitchTab(tabId);
+    if (tabId === 'settings') {
+        loadAgentConfig();
+    }
+};
+
+// 加载 Agent 配置
+async function loadAgentConfig() {
+    const loading = document.getElementById('settingsLoading');
+    const form = document.getElementById('settingsForm');
+    
+    loading.style.display = 'block';
+    form.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/agent/config');
+        const result = await response.json();
+        
+        if (result.success) {
+            const config = result.data;
+            
+            // 填充 LLM 配置
+            if (config.llm) {
+                document.getElementById('llm_model_id').value = config.llm.model_id || 'qwen-plus';
+                document.getElementById('llm_base_url').value = config.llm.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('llm_api_key').value = config.llm.api_key || '';
+            }
+            
+            // 填充 Vision 配置
+            if (config.vision) {
+                document.getElementById('vision_model_id').value = config.vision.model_id || 'qwen-vl-max';
+                document.getElementById('vision_base_url').value = config.vision.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('vision_api_key').value = config.vision.api_key || '';
+            }
+            
+            // 填充 Embedding 配置
+            if (config.embedding) {
+                document.getElementById('embed_model_name').value = config.embedding.model_name || 'text-embedding-v3';
+                document.getElementById('embed_base_url').value = config.embedding.base_url || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('embed_api_key').value = config.embedding.api_key || '';
+            }
+            
+            // 填充高级设置
+            if (config.settings) {
+                document.getElementById('max_questions_per_image').value = config.settings.max_questions_per_image || 10;
+                document.getElementById('max_questions_per_document').value = config.settings.max_questions_per_document || 50;
+                document.getElementById('confidence_threshold').value = config.settings.confidence_threshold || 0.6;
+                document.getElementById('max_file_size_mb').value = config.settings.max_file_size_mb || 50;
+            }
+            
+            loading.style.display = 'none';
+            form.style.display = 'block';
+        } else {
+            showSettingsMessage('加载配置失败：' + result.message, 'error');
+            loading.style.display = 'none';
+            form.style.display = 'block';
+        }
+    } catch (error) {
+        showSettingsMessage('加载配置失败：' + error.message, 'error');
+        loading.style.display = 'none';
+        form.style.display = 'block';
+    }
+}
+
+// 保存 Agent 配置
+async function saveAgentConfig() {
+    const config = {
+        llm: {
+            model_id: document.getElementById('llm_model_id').value.trim(),
+            base_url: document.getElementById('llm_base_url').value.trim(),
+            api_key: document.getElementById('llm_api_key').value.trim()
+        },
+        vision: {
+            model_id: document.getElementById('vision_model_id').value.trim(),
+            base_url: document.getElementById('vision_base_url').value.trim(),
+            api_key: document.getElementById('vision_api_key').value.trim()
+        },
+        embedding: {
+            model_name: document.getElementById('embed_model_name').value.trim(),
+            base_url: document.getElementById('embed_base_url').value.trim(),
+            api_key: document.getElementById('embed_api_key').value.trim()
+        },
+        settings: {
+            max_questions_per_image: parseInt(document.getElementById('max_questions_per_image').value) || 10,
+            max_questions_per_document: parseInt(document.getElementById('max_questions_per_document').value) || 50,
+            confidence_threshold: parseFloat(document.getElementById('confidence_threshold').value) || 0.6,
+            max_file_size_mb: parseInt(document.getElementById('max_file_size_mb').value) || 50
+        }
+    };
+    
+    try {
+        const response = await fetch('/api/agent/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSettingsMessage('✅ 配置保存成功！立即生效。', 'success');
+            loadAgentConfig(); // 重新加载配置
+        } else {
+            showSettingsMessage('保存失败：' + result.message, 'error');
+        }
+    } catch (error) {
+        showSettingsMessage('保存失败：' + error.message, 'error');
+    }
+}
+
+// 测试 Agent 配置
+async function testAgentConfig() {
+    showSettingsMessage('🧪 测试中...', 'info');
+    
+    try {
+        const response = await fetch('/api/agent/config/test', {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSettingsMessage(`✅ 配置有效！模型：${result.data.llm_model}`, 'success');
+        } else {
+            showSettingsMessage('❌ ' + result.message, 'error');
+        }
+    } catch (error) {
+        showSettingsMessage('测试失败：' + error.message, 'error');
+    }
+}
+
+// 重置 Agent 配置
+function resetAgentConfig() {
+    if (confirm('确定要重置为默认配置吗？')) {
+        document.getElementById('llm_model_id').value = 'qwen-plus';
+        document.getElementById('llm_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+        document.getElementById('llm_api_key').value = '';
+        
+        document.getElementById('vision_model_id').value = 'qwen-vl-max';
+        document.getElementById('vision_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+        document.getElementById('vision_api_key').value = '';
+        
+        document.getElementById('embed_model_name').value = 'text-embedding-v3';
+        document.getElementById('embed_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+        document.getElementById('embed_api_key').value = '';
+        
+        document.getElementById('max_questions_per_image').value = 10;
+        document.getElementById('max_questions_per_document').value = 50;
+        document.getElementById('confidence_threshold').value = 0.6;
+        document.getElementById('max_file_size_mb').value = 50;
+        
+        showSettingsMessage('⚠️ 已重置为默认值，记得保存！', 'info');
+    }
+}
+
+// 显示设置页面消息
+function showSettingsMessage(text, type) {
+    const messageArea = document.getElementById('settingsMessage');
+    const bgColor = type === 'success' ? '#e8f5e9' : type === 'error' ? '#ffebee' : '#e3f2fd';
+    const borderColor = type === 'success' ? '#a5d6a7' : type === 'error' ? '#ef9a9a' : '#90caf9';
+    const color = type === 'success' ? '#2e7d32' : type === 'error' ? '#c62828' : '#1565c0';
+    
+    messageArea.innerHTML = `<div style="padding: 15px; border-radius: 6px; background: ${bgColor}; border: 1px solid ${borderColor}; color: ${color};">${text}</div>`;
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            messageArea.innerHTML = '';
+        }, 3000);
+    }
+}
