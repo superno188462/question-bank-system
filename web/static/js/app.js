@@ -318,6 +318,9 @@ function renderQuestionList(questions) {
             </div>
         </div>
     `).join('');
+    
+    // 高亮代码块
+    setTimeout(() => highlightCodeBlocks(), 100);
 }
 
 // 渲染选项预览
@@ -1001,12 +1004,12 @@ function editCurrentQuestion() {
 
 // 显示 AI 上传模态框
 function showAIUploadModal() {
-    document.getElementById('aiUploadModal').style.display = 'flex';
+    document.getElementById('aiUploadModal').classList.add('active');
 }
 
 // 关闭 AI 上传模态框
 function closeAIUploadModal() {
-    document.getElementById('aiUploadModal').style.display = 'none';
+    document.getElementById('aiUploadModal').classList.remove('active');
     document.getElementById('aiUploadFiles').value = '';
     document.getElementById('aiUploadProgress').style.display = 'none';
 }

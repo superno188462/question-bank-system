@@ -20,8 +20,8 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=20260307-5">
-    <script src="/static/js/app.js?v=20260307-5"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260307-6">
+    <script src="/static/js/app.js?v=20260307-6"></script>
 </head>
 <body>
     <div class="container">
@@ -369,7 +369,7 @@
     </div>
 
     <!-- AI 上传模态框 -->
-    <div id="aiUploadModal" class="modal-overlay">
+    <div id="aiUploadModal" class="modal-overlay" onclick="if(event.target===this) closeAIUploadModal()">
         <div class="modal" style="max-width: 600px;">
             <div class="modal-header">
                 <h3 class="modal-title">🤖 AI 智能提取题目</h3>
