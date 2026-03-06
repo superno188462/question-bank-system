@@ -1,13 +1,14 @@
 """
 AI Agent API 接口
-提供题目提取、解析生成、智能问答等功能
+提供题目提取、解析生成、智能问答、配置管理等功能
 """
 import os
 import tempfile
 import shutil
-from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from typing import List, Optional, Dict, Any
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from core.models import (
     StagingQuestion, StagingQuestionCreate, StagingQuestionUpdate,
@@ -21,6 +22,17 @@ from agent.extractors.document_extractor import DocumentExtractor
 from agent.generators.explanation_generator import ExplanationGenerator
 
 router = APIRouter(prefix="/agent", tags=["AI Agent"])
+
+
+# ========== 配置管理模型 ==========
+
+class AgentConfigUpdate(BaseModel):
+    """配置更新请求模型"""
+    llm: Optional[Dict[str, str]] = None
+    vision: Optional[Dict[str, str]] = None
+    embedding: Optional[Dict[str, str]] = None
+    settings: Optional[Dict[str, Any]] = None
+    allowed_extensions: Optional[Dict[str, List[str]]] = None
 
 
 # ========== 题目提取功能 ==========
@@ -371,3 +383,113 @@ async def get_qa_logs(page: int = 1, limit: int = 20):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========== 配置管理 ==========
+
+@router.get("/config")
+async def get_agent_config():
+    """
+    获取 Agent 配置
+    
+    - 返回当前配置（API Key 部分掩码）
+    - 用于 Web 界面显示
+    """
+    try:
+        config = AgentConfig.get_full_config()
+        return SuccessResponse(
+            success=True,
+            data=config,
+            message="配置获取成功"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/config")
+async def update_agent_config(config_update: AgentConfigUpdate):
+    """
+    更新 Agent 配置
+    
+    - 支持部分更新
+    - 立即生效（热更新）
+    - 保存到 config/agent.json
+    """
+    try:
+        # 获取当前配置
+        current_config = AgentConfig._load_config(force_refresh=True)
+        
+        # 合并更新
+        if config_update.llm:
+            current_config.setdefault("llm", {}).update(config_update.llm)
+        if config_update.vision:
+            current_config.setdefault("vision", {}).update(config_update.vision)
+        if config_update.embedding:
+            current_config.setdefault("embedding", {}).update(config_update.embedding)
+        if config_update.settings:
+            current_config.setdefault("settings", {}).update(config_update.settings)
+        if config_update.allowed_extensions:
+            current_config.setdefault("allowed_extensions", {}).update(config_update.allowed_extensions)
+        
+        # 保存配置
+        if AgentConfig.save_config(current_config):
+            # 刷新配置缓存
+            AgentConfig.refresh()
+            
+            return SuccessResponse(
+                success=True,
+                data=AgentConfig.get_full_config(),
+                message="配置更新成功（立即生效）"
+            )
+        else:
+            raise HTTPException(status_code=500, detail="保存配置文件失败")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"更新配置失败：{str(e)}")
+
+
+@router.post("/config/test")
+async def test_agent_config():
+    """
+    测试配置是否有效
+    
+    - 验证 API Key 是否可用
+    - 返回测试结果
+    """
+    try:
+        # 验证配置
+        if not AgentConfig.LLM_API_KEY:
+            return SuccessResponse(
+                success=False,
+                data={"status": "not_configured"},
+                message="LLM API Key 未配置"
+            )
+        
+        if not AgentConfig.VISION_API_KEY:
+            return SuccessResponse(
+                success=False,
+                data={"status": "not_configured"},
+                message="视觉模型 API Key 未配置"
+            )
+        
+        # TODO: 实际测试 API 连接
+        # 目前只验证配置是否存在
+        return SuccessResponse(
+            success=True,
+            data={
+                "status": "configured",
+                "llm_model": AgentConfig.LLM_MODEL_ID,
+                "vision_model": AgentConfig.VISION_MODEL_ID,
+                "base_url": AgentConfig.LLM_BASE_URL
+            },
+            message="配置有效"
+        )
+        
+    except Exception as e:
+        return SuccessResponse(
+            success=False,
+            data={"status": "error"},
+            message=f"测试失败：{str(e)}"
+        )

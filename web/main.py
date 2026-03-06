@@ -63,6 +63,12 @@ def create_web_app() -> FastAPI:
     async def root(request: Request):
         return templates.TemplateResponse("index.html", {"request": request})
     
+    # AI Agent 配置页面
+    @app.get("/agent-config", response_class=HTMLResponse)
+    async def agent_config_page(request: Request):
+        """AI Agent 配置管理页面"""
+        return templates.TemplateResponse("agent-config.html", {"request": request})
+    
     # 健康检查端点
     @app.get("/health")
     async def health_check():

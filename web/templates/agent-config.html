@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 配置 - 题库管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .config-section {
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            background: #f5f5f5;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-header h2 {
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .section-icon {
+            font-size: 24px;
+        }
+        
+        .section-body {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-group input::placeholder {
+            color: #999;
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            color: #1565c0;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            color: #2e7d32;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            border: 1px solid #ef9a9a;
+            color: #c62828;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-configured {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .status-not-configured {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Agent 配置</h1>
+            <p>配置 AI 模型 API，支持题目提取、解析生成等功能</p>
+        </div>
+        
+        <div class="content">
+            <a href="/" class="back-link">← 返回首页</a>
+            
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>加载配置中...</p>
+            </div>
+            
+            <div id="configForm" style="display: none;">
+                <div id="messageArea"></div>
+                
+                <form id="agentConfigForm">
+                    <!-- LLM 配置 -->
+                    <div class="config-section">
+                        <div class="section-header">
+                            <span class="section-icon">📝</span>
+                            <h2>LLM 模型配置</h2>
+                            <span id="llmStatus" class="status-badge status-not-configured">未配置</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="llm_model_id">模型 ID</label>
+                                    <input type="text" id="llm_model_id" name="llm.model_id" value="qwen-plus" placeholder="qwen-plus">
+                                    <small>如：qwen-plus, qwen-max, gpt-4</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="llm_base_url">API 地址</label>
+                                    <input type="url" id="llm_base_url" name="llm.base_url" value="https://dashscope.aliyuncs.com/compatible-mode/v1" placeholder="https://...">
+                                    <small>OpenAI 兼容 API 地址</small>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="llm_api_key">API Key</label>
+                                <input type="password" id="llm_api_key" name="llm.api_key" placeholder="sk-..." value="">
+                                <small>从 <a href="https://dashscope.console.aliyun.com/" target="_blank">阿里云百炼</a> 获取</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Vision 配置 -->
+                    <div class="config-section">
+                        <div class="section-header">
+                            <span class="section-icon">👁️</span>
+                            <h2>视觉模型配置</h2>
+                            <span id="visionStatus" class="status-badge status-not-configured">未配置</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="vision_model_id">模型 ID</label>
+                                    <input type="text" id="vision_model_id" name="vision.model_id" value="qwen-vl-max" placeholder="qwen-vl-max">
+                                    <small>如：qwen-vl-max, qwen-vl-plus</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="vision_base_url">API 地址</label>
+                                    <input type="url" id="vision_base_url" name="vision.base_url" value="https://dashscope.aliyuncs.com/compatible-mode/v1" placeholder="https://...">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="vision_api_key">API Key</label>
+                                <input type="password" id="vision_api_key" name="vision.api_key" placeholder="sk-..." value="">
+                                <small>用于图片题目提取</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Embedding 配置 -->
+                    <div class="config-section">
+                        <div class="section-header">
+                            <span class="section-icon">🔢</span>
+                            <h2>Embedding 模型配置</h2>
+                            <span id="embedStatus" class="status-badge status-not-configured">未配置</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="embed_model_name">模型名称</label>
+                                    <input type="text" id="embed_model_name" name="embedding.model_name" value="text-embedding-v3" placeholder="text-embedding-v3">
+                                </div>
+                                <div class="form-group">
+                                    <label for="embed_base_url">API 地址</label>
+                                    <input type="url" id="embed_base_url" name="embedding.base_url" value="https://dashscope.aliyuncs.com/compatible-mode/v1" placeholder="https://...">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="embed_api_key">API Key</label>
+                                <input type="password" id="embed_api_key" name="embedding.api_key" placeholder="sk-..." value="">
+                                <small>用于向量检索（后续功能）</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 高级设置 -->
+                    <div class="config-section">
+                        <div class="section-header">
+                            <span class="section-icon">⚙️</span>
+                            <h2>高级设置</h2>
+                        </div>
+                        <div class="section-body">
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="max_questions_per_image">单张图片最多题目数</label>
+                                    <input type="number" id="max_questions_per_image" name="settings.max_questions_per_image" value="10" min="1" max="50">
+                                </div>
+                                <div class="form-group">
+                                    <label for="max_questions_per_document">单个文档最多题目数</label>
+                                    <input type="number" id="max_questions_per_document" name="settings.max_questions_per_document" value="50" min="1" max="200">
+                                </div>
+                            </div>
+                            <div class="grid-2">
+                                <div class="form-group">
+                                    <label for="confidence_threshold">置信度阈值</label>
+                                    <input type="number" id="confidence_threshold" name="settings.confidence_threshold" value="0.6" min="0" max="1" step="0.1">
+                                    <small>低于此值需要人工重点检查</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="max_file_size_mb">最大文件大小 (MB)</label>
+                                    <input type="number" id="max_file_size_mb" name="settings.max_file_size_mb" value="50" min="1" max="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">💾 保存配置</button>
+                        <button type="button" class="btn btn-secondary" onclick="testConfig()">🧪 测试连接</button>
+                        <button type="button" class="btn btn-secondary" onclick="resetConfig()">🔄 重置默认</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/agent/config');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const config = result.data;
+                    
+                    // 填充表单
+                    if (config.llm) {
+                        document.getElementById('llm_model_id').value = config.llm.model_id || '';
+                        document.getElementById('llm_base_url').value = config.llm.base_url || '';
+                        document.getElementById('llm_api_key').value = config.llm.api_key || '';
+                        updateStatus('llmStatus', config.llm.api_key);
+                    }
+                    
+                    if (config.vision) {
+                        document.getElementById('vision_model_id').value = config.vision.model_id || '';
+                        document.getElementById('vision_base_url').value = config.vision.base_url || '';
+                        document.getElementById('vision_api_key').value = config.vision.api_key || '';
+                        updateStatus('visionStatus', config.vision.api_key);
+                    }
+                    
+                    if (config.embedding) {
+                        document.getElementById('embed_model_name').value = config.embedding.model_name || '';
+                        document.getElementById('embed_base_url').value = config.embedding.base_url || '';
+                        document.getElementById('embed_api_key').value = config.embedding.api_key || '';
+                        updateStatus('embedStatus', config.embedding.api_key);
+                    }
+                    
+                    if (config.settings) {
+                        document.getElementById('max_questions_per_image').value = config.settings.max_questions_per_image || 10;
+                        document.getElementById('max_questions_per_document').value = config.settings.max_questions_per_document || 50;
+                        document.getElementById('confidence_threshold').value = config.settings.confidence_threshold || 0.6;
+                        document.getElementById('max_file_size_mb').value = config.settings.max_file_size_mb || 50;
+                    }
+                    
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('configForm').style.display = 'block';
+                } else {
+                    showMessage('加载配置失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('加载配置失败：' + error.message, 'error');
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('configForm').style.display = 'block';
+            }
+        }
+        
+        // 更新状态
+        function updateStatus(elementId, apiKey) {
+            const element = document.getElementById(elementId);
+            if (apiKey && apiKey.length > 0) {
+                element.textContent = '已配置';
+                element.className = 'status-badge status-configured';
+            } else {
+                element.textContent = '未配置';
+                element.className = 'status-badge status-not-configured';
+            }
+        }
+        
+        // 保存配置
+        document.getElementById('agentConfigForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const config = {};
+            
+            // 构建配置对象
+            for (const [key, value] of formData.entries()) {
+                const parts = key.split('.');
+                if (parts.length === 2) {
+                    const [section, field] = parts;
+                    if (!config[section]) {
+                        config[section] = {};
+                    }
+                    // 数字转换
+                    if (['max_questions_per_image', 'max_questions_per_document', 'max_file_size_mb'].includes(key)) {
+                        config[section][field] = parseInt(value) || 0;
+                    } else if (['confidence_threshold'].includes(key)) {
+                        config[section][field] = parseFloat(value) || 0;
+                    } else {
+                        config[section][field] = value;
+                    }
+                }
+            }
+            
+            try {
+                const response = await fetch('/api/agent/config', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage('✅ 配置保存成功！立即生效。', 'success');
+                    updateStatus('llmStatus', config.llm?.api_key);
+                    updateStatus('visionStatus', config.vision?.api_key);
+                    updateStatus('embedStatus', config.embedding?.api_key);
+                } else {
+                    showMessage('保存失败：' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('保存失败：' + error.message, 'error');
+            }
+        });
+        
+        // 测试配置
+        async function testConfig() {
+            showMessage('🧪 测试中...', 'info');
+            
+            try {
+                const response = await fetch('/api/agent/config/test', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(`✅ 配置有效！模型：${result.data.llm_model}`, 'success');
+                } else {
+                    showMessage('❌ ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('测试失败：' + error.message, 'error');
+            }
+        }
+        
+        // 重置配置
+        function resetConfig() {
+            if (confirm('确定要重置为默认配置吗？')) {
+                document.getElementById('llm_model_id').value = 'qwen-plus';
+                document.getElementById('llm_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('llm_api_key').value = '';
+                
+                document.getElementById('vision_model_id').value = 'qwen-vl-max';
+                document.getElementById('vision_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('vision_api_key').value = '';
+                
+                document.getElementById('embed_model_name').value = 'text-embedding-v3';
+                document.getElementById('embed_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                document.getElementById('embed_api_key').value = '';
+                
+                document.getElementById('max_questions_per_image').value = 10;
+                document.getElementById('max_questions_per_document').value = 50;
+                document.getElementById('confidence_threshold').value = 0.6;
+                document.getElementById('max_file_size_mb').value = 50;
+                
+                updateStatus('llmStatus', '');
+                updateStatus('visionStatus', '');
+                updateStatus('embedStatus', '');
+                
+                showMessage('⚠️ 已重置为默认值，记得保存！', 'info');
+            }
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            const messageArea = document.getElementById('messageArea');
+            messageArea.innerHTML = `<div class="alert alert-${type}">${text}</div>`;
+            
+            // 3 秒后自动消失
+            if (type !== 'error') {
+                setTimeout(() => {
+                    messageArea.innerHTML = '';
+                }, 3000);
+            }
+        }
+        
+        // 页面加载时初始化
+        loadConfig();
+    </script>
+</body>
+</html>
