@@ -1299,8 +1299,6 @@ async function loadAgentConfig() {
             
             // 填充高级设置
             if (config.settings) {
-                document.getElementById('max_questions_per_image').value = config.settings.max_questions_per_image || 10;
-                document.getElementById('max_questions_per_document').value = config.settings.max_questions_per_document || 50;
                 document.getElementById('confidence_threshold').value = config.settings.confidence_threshold || 0.6;
                 document.getElementById('max_file_size_mb').value = config.settings.max_file_size_mb || 50;
             }
@@ -1338,8 +1336,6 @@ async function saveAgentConfig() {
             api_key: document.getElementById('embed_api_key').value.trim()
         },
         settings: {
-            max_questions_per_image: parseInt(document.getElementById('max_questions_per_image').value) || 10,
-            max_questions_per_document: parseInt(document.getElementById('max_questions_per_document').value) || 50,
             confidence_threshold: parseFloat(document.getElementById('confidence_threshold').value) || 0.6,
             max_file_size_mb: parseInt(document.getElementById('max_file_size_mb').value) || 50
         }
@@ -1401,8 +1397,6 @@ function resetAgentConfig() {
         document.getElementById('embed_base_url').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
         document.getElementById('embed_api_key').value = '';
         
-        document.getElementById('max_questions_per_image').value = 10;
-        document.getElementById('max_questions_per_document').value = 50;
         document.getElementById('confidence_threshold').value = 0.6;
         document.getElementById('max_file_size_mb').value = 50;
         
