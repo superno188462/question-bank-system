@@ -872,18 +872,21 @@ async function loadPendingQuestions() {
 // 批准预备题目入库
 async function approvePendingQuestion(id) {
     try {
-        const response = await fetch(`${API_BASE}/qa/pending/${id}/approve`, {
+        const response = await fetch(`${API_BASE}/agent/staging/${id}/approve`, {
             method: 'POST'
         });
         
-        if (!response.ok) throw new Error('操作失败');
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || '入库失败');
+        }
         
         loadPendingQuestions();
         loadQuestions();
         showToast('题目已入库', 'success');
     } catch (error) {
         console.error('入库失败:', error);
-        showToast('入库失败', 'error');
+        showToast('入库失败：' + error.message, 'error');
     }
 }
 
@@ -1308,11 +1311,17 @@ async function approvePendingQuestion(qId) {
             body: formData
         });
         
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ detail: '操作失败' }));
+            throw new Error(err.detail || '操作失败');
+        }
+        
         const result = await response.json();
         
         if (result.success) {
             showToast('审核通过', 'success');
             loadPendingQuestions();
+            loadQuestions();
         } else {
             throw new Error(result.detail || '操作失败');
         }

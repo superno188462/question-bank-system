@@ -236,25 +236,39 @@ async def get_staging_question(question_id: int):
 @router.put("/staging/{question_id}")
 async def update_staging_question(question_id: int, update_data: StagingQuestionUpdate):
     """更新预备题目"""
+    import logging
+    logging.info(f"更新预备题目 {question_id}: {update_data.dict()}")
+    
     question = StagingQuestionRepository.get_by_id(question_id)
     
     if not question:
+        logging.error(f"预备题目 {question_id} 不存在")
         raise HTTPException(status_code=404, detail="题目不存在")
     
     update_dict = update_data.dict(exclude_unset=True)
+    logging.info(f"更新数据：{update_dict}")
+    
     StagingQuestionRepository.update(question_id, update_dict)
     
     updated = StagingQuestionRepository.get_by_id(question_id)
+    logging.info(f"更新后的题目：{updated}")
+    
     return SuccessResponse(success=True, data=updated, message="更新成功")
 
 
 @router.post("/staging/{question_id}/approve")
 async def approve_staging_question(question_id: int, reviewed_by: str = Form("system")):
     """审核通过预备题目"""
+    import logging
+    logging.info(f"审核预备题目 {question_id} 入库，reviewed_by: {reviewed_by}")
+    
     question = StagingQuestionRepository.get_by_id(question_id)
     
     if not question:
+        logging.error(f"预备题目 {question_id} 不存在")
         raise HTTPException(status_code=404, detail="题目不存在")
+    
+    logging.info(f"预备题目数据：content={question['content'][:50]}..., category_id={question.get('category_id')}")
     
     # 1. 更新预备题目数据（如果之前编辑过）
     StagingQuestionRepository.update(question_id, {
@@ -275,8 +289,12 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
         category_id=question.get('category_id')
     )
     
+    logging.info(f"创建正式题目：{question_data}")
+    
     question_repo = QuestionRepository()
-    question_repo.create(question_data)
+    created_question = question_repo.create(question_data)
+    
+    logging.info(f"正式题目创建成功，ID: {created_question.id}")
     
     return SuccessResponse(success=True, message="审核通过")
 
