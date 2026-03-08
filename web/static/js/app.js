@@ -8,6 +8,7 @@ let currentQuestions = [];
 let currentPage = 1;
 let totalPages = 1;
 let currentViewQuestionId = null; // 当前查看的题目 ID
+let currentViewQuestionType = 'normal'; // 当前查看的题目类型：'normal' 或 'staging'
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -406,8 +407,9 @@ async function viewQuestion(id) {
         
         const q = await response.json();
         
-        // 保存当前查看的题目 ID
+        // 保存当前查看的题目 ID 和类型
         currentViewQuestionId = id;
+        currentViewQuestionType = 'normal';
         
         document.getElementById('detailContent').innerHTML = `
             <div class="question-content">${renderMarkdown(q.content)}</div>
@@ -558,6 +560,66 @@ function addOptionInput() {
     container.appendChild(row);
 }
 
+// 编辑预备题目
+async function editStagingQuestion(id) {
+    try {
+        const response = await fetch(`${API_BASE}/agent/staging/${id}`);
+        if (!response.ok) throw new Error('加载失败');
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || '加载失败');
+        
+        const q = result.data;
+        
+        document.getElementById('questionModalTitle').textContent = '编辑预备题目';
+        document.getElementById('questionId').value = q.id;
+        document.getElementById('questionId').dataset.type = 'staging'; // 标记为预备题目
+        document.getElementById('questionContent').value = q.content;
+        document.getElementById('questionExplanation').value = q.explanation || '';
+        
+        // 加载并设置分类
+        await loadCategorySelect();
+        document.getElementById('questionCategory').value = q.category_id || '';
+        
+        // 加载选项
+        const container = document.getElementById('optionsEditor');
+        container.innerHTML = '';
+        
+        if (q.options && q.options.length > 0) {
+            q.options.forEach((opt, idx) => {
+                const isCorrect = opt === q.answer;
+                const row = document.createElement('div');
+                row.className = 'option-row';
+                row.innerHTML = `
+                    <input type="text" class="option-input" placeholder="选项 ${String.fromCharCode(65 + idx)}" 
+                           data-index="${idx}" value="${escapeHtml(opt)}">
+                    <label class="option-correct">
+                        <input type="radio" name="correctOption" value="${idx}" ${isCorrect ? 'checked' : ''}> 正确答案
+                    </label>
+                    ${idx > 1 ? `<button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">删除</button>` : ''}
+                `;
+                container.appendChild(row);
+            });
+        } else {
+            // 填空题：只有一个答案选项
+            container.innerHTML = `
+                <div class="option-row">
+                    <input type="text" class="option-input" placeholder="填空题答案" 
+                           data-index="0" value="${escapeHtml(q.answer)}">
+                    <label class="option-correct">
+                        <input type="radio" name="correctOption" value="0" checked> 正确答案
+                    </label>
+                </div>
+            `;
+        }
+        
+        document.getElementById('questionModal').classList.add('active');
+    } catch (error) {
+        console.error('加载预备题目失败:', error);
+        showToast('加载失败', 'error');
+    }
+}
+
 // 编辑题目
 async function editQuestion(id) {
     try {
@@ -617,6 +679,7 @@ async function editQuestion(id) {
 // 保存题目
 async function saveQuestion() {
     const id = document.getElementById('questionId').value;
+    const questionType = document.getElementById('questionId').dataset.type || 'normal';
     const content = document.getElementById('questionContent').value.trim();
     const categoryId = document.getElementById('questionCategory').value;
     const explanation = document.getElementById('questionExplanation').value.trim();
@@ -647,23 +710,53 @@ async function saveQuestion() {
     };
     
     try {
-        const url = id ? `${API_BASE}/questions/${id}` : `${API_BASE}/questions`;
-        const method = id ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.detail || '保存失败');
+        if (questionType === 'staging') {
+            // 预备题目：更新并入库
+            const updateResponse = await fetch(`${API_BASE}/agent/staging/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!updateResponse.ok) {
+                const err = await updateResponse.json();
+                throw new Error(err.detail || '保存失败');
+            }
+            
+            // 更新成功后自动入库
+            const approveResponse = await fetch(`${API_BASE}/agent/staging/${id}/approve`, {
+                method: 'POST'
+            });
+            
+            if (!approveResponse.ok) {
+                throw new Error('入库失败');
+            }
+            
+            closeModal('questionModal');
+            document.getElementById('questionId').dataset.type = 'normal';
+            await loadPendingQuestions();
+            await loadQuestions(currentCategoryId, currentPage);
+            showToast('题目已更新并入库', 'success');
+        } else {
+            // 正式题目：正常保存
+            const url = id ? `${API_BASE}/questions/${id}` : `${API_BASE}/questions`;
+            const method = id ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || '保存失败');
+            }
+            
+            closeModal('questionModal');
+            await loadQuestions(currentCategoryId, currentPage);
+            showToast(id ? '题目更新成功' : '题目创建成功', 'success');
         }
-        
-        closeModal('questionModal');
-        await loadQuestions(currentCategoryId, currentPage);
-        showToast(id ? '题目更新成功' : '题目创建成功', 'success');
     } catch (error) {
         console.error('保存题目失败:', error);
         showToast('保存失败: ' + error.message, 'error');
@@ -997,7 +1090,13 @@ function editCurrentQuestion() {
     }
     // 关闭详情页，打开编辑页
     closeModal('detailModal');
-    setTimeout(() => editQuestion(currentViewQuestionId), 200);
+    setTimeout(() => {
+        if (currentViewQuestionType === 'staging') {
+            editStagingQuestion(currentViewQuestionId);
+        } else {
+            editQuestion(currentViewQuestionId);
+        }
+    }, 200);
 }
 
 // ========== AI 上传功能 ==========
@@ -1183,8 +1282,9 @@ async function viewPendingQuestion(qId) {
             document.getElementById('detailEditBtn').style.display = 'inline-block';
             document.getElementById('detailEditBtn').textContent = '编辑并入库';
             
-            // 保存当前查看的题目 ID
+            // 保存当前查看的题目 ID 和类型
             currentViewQuestionId = qId;
+            currentViewQuestionType = 'staging';
             
             document.getElementById('detailModal').classList.add('active');
         } else {
