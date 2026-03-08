@@ -258,8 +258,14 @@ async def update_staging_question(question_id: int, update_data: StagingQuestion
 
 
 @router.post("/staging/{question_id}/approve")
-async def approve_staging_question(question_id: int, reviewed_by: str = Form("system")):
-    """审核通过预备题目并删除预备记录"""
+async def approve_staging_question(question_id: int, reviewed_by: str = Form("system"), force: bool = Form(False)):
+    """审核通过预备题目并删除预备记录（带重复检测）
+    
+    Args:
+        question_id: 预备题目 ID
+        reviewed_by: 审核人
+        force: 是否强制入库（忽略重复检测）
+    """
     import logging
     from pydantic import ValidationError
     logging.info(f"审核预备题目 {question_id} 入库，reviewed_by: {reviewed_by}")
@@ -273,7 +279,68 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
         
         logging.info(f"预备题目数据：content={question['content'][:50]}..., category_id={question.get('category_id')}")
         
-        # 1. 创建正式题目
+        # 1. 重复检测（使用向量相似度）- 如果 force=true 则跳过
+        if not force:
+            from core.database import get_db_connection
+            from core.services.vector_index import VectorIndex
+            from agent.services.embedding_service import get_embedding_service
+            
+            db = get_db_connection()
+            vector_index = VectorIndex(db)
+            
+            # 获取 Embedding 配置
+            from agent.config import AgentConfig
+            config = AgentConfig.get_full_config()
+            embedding_config = config.get('embedding', {})
+            
+            # 计算题目向量
+            embedding_service = get_embedding_service(embedding_config)
+            question_embedding = embedding_service.embed(question['content'])
+            
+            # 检索相似题目（相似度 > 0.95 认为高度相似）
+            similar_questions = vector_index.search_similar(
+                embedding=question_embedding,
+                threshold=0.95,
+                top_k=5
+            )
+            
+            # 如果有高度相似题目，返回警告（不直接入库）
+            if similar_questions:
+                # 获取相似题目的详细信息
+                from core.services import QuestionService
+                question_service = QuestionService()
+                
+                similar_details = []
+                for sim_q in similar_questions:
+                    q_detail = question_service.get_question(sim_q['question_id'])
+                    if q_detail:
+                        similar_details.append({
+                            'id': q_detail.id,
+                            'content': q_detail.content[:100] + '...' if len(q_detail.content) > 100 else q_detail.content,
+                            'similarity': sim_q['similarity'],
+                            'answer': q_detail.answer
+                        })
+                
+                db.close()
+                
+                logging.warning(f"发现 {len(similar_details)} 道相似题目")
+                
+                return SuccessResponse(
+                    success=False,
+                    code="POSSIBLE_DUPLICATE",
+                    data={
+                        "similar_questions": similar_details,
+                        "message": f"发现 {len(similar_details)} 道高度相似题目，请确认是否重复"
+                    },
+                    message="检测到相似题目"
+                )
+            
+            db.close()
+        else:
+            logging.info(f"强制入库模式，跳过重复检测")
+            question_embedding = None
+        
+        # 2. 无重复，创建正式题目
         from core.database.repositories import QuestionRepository, CategoryRepository
         from core.models import QuestionCreate
         
@@ -307,7 +374,33 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
         
         logging.info(f"正式题目创建成功，ID: {created_question.id}")
         
-        # 2. 删除预备题目记录
+        # 3. 保存向量到索引（如果之前没计算过，重新计算）
+        if question_embedding is None:
+            from core.database import get_db_connection
+            from core.services.vector_index import VectorIndex
+            from agent.services.embedding_service import get_embedding_service
+            
+            db = get_db_connection()
+            vector_index = VectorIndex(db)
+            
+            from agent.config import AgentConfig
+            config = AgentConfig.get_full_config()
+            embedding_config = config.get('embedding', {})
+            
+            embedding_service = get_embedding_service(embedding_config)
+            question_embedding = embedding_service.embed(question['content'])
+            
+            vector_index.add(created_question.id, question_embedding)
+            db.close()
+        else:
+            db = get_db_connection()
+            vector_index = VectorIndex(db)
+            vector_index.add(created_question.id, question_embedding)
+            db.close()
+        
+        logging.info(f"题目向量已保存：{created_question.id}")
+        
+        # 4. 删除预备题目记录
         StagingQuestionRepository.delete(question_id)
         logging.info(f"预备题目 {question_id} 已删除")
         

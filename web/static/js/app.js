@@ -907,6 +907,14 @@ async function approvePendingQuestion(id) {
         
         const result = await response.json();
         
+        // 检查是否检测到重复题目
+        if (!result.success && result.code === 'POSSIBLE_DUPLICATE') {
+            // 显示重复题目警告
+            const similarQuestions = result.data.similar_questions || [];
+            showDuplicateWarning(id, similarQuestions);
+            return;
+        }
+        
         if (result.success) {
             showToast('题目已入库', 'success');
             // 重新加载预备题目和正式题目
@@ -917,6 +925,86 @@ async function approvePendingQuestion(id) {
         }
     } catch (error) {
         console.error('入库失败:', error);
+        showToast('入库失败：' + error.message, 'error');
+    }
+}
+
+// 显示重复题目警告
+function showDuplicateWarning(stagingId, similarQuestions) {
+    const modal = document.getElementById('duplicateWarningModal');
+    const tbody = document.getElementById('duplicateWarningBody');
+    
+    if (!modal || !tbody) {
+        console.error('找不到重复警告模态框元素');
+        return;
+    }
+    
+    // 填充相似题目列表
+    tbody.innerHTML = similarQuestions.map(q => `
+        <tr>
+            <td style="max-width: 400px;">
+                <div style="font-size: 13px; margin-bottom: 5px;">${escapeHtml(q.content)}</div>
+                <div style="font-size: 12px; color: var(--text-light);">答案：${escapeHtml(q.answer)}</div>
+            </td>
+            <td>
+                <span class="badge" style="background: ${q.similarity >= 0.98 ? 'var(--danger)' : 'var(--warning)'}">
+                    ${(q.similarity * 100).toFixed(1)}%
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="viewSimilarQuestion(${q.id})">查看</button>
+            </td>
+        </tr>
+    `).join('');
+    
+    // 保存 staging ID 到模态框
+    modal.dataset.stagingId = stagingId;
+    modal.classList.add('active');
+}
+
+// 查看相似题目
+async function viewSimilarQuestion(questionId) {
+    closeModal('duplicateWarningModal');
+    await viewQuestion(questionId);
+}
+
+// 确认入库（忽略重复警告）
+async function confirmImportIgnoreDuplicate() {
+    const modal = document.getElementById('duplicateWarningModal');
+    const stagingId = modal.dataset.stagingId;
+    
+    if (!stagingId) {
+        showToast('题目 ID 不存在', 'error');
+        return;
+    }
+    
+    closeModal('duplicateWarningModal');
+    
+    try {
+        const formData = new FormData();
+        formData.append('reviewed_by', 'user');
+        formData.append('force', 'true');  // 强制入库
+        
+        const response = await fetch(`${API_BASE}/agent/staging/${stagingId}/approve`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ detail: '操作失败' }));
+            throw new Error(err.detail || '入库失败');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showToast('题目已入库', 'success');
+            await loadPendingQuestions();
+            await loadQuestions(null, 1);
+        } else {
+            throw new Error(result.detail || '入库失败');
+        }
+    } catch (error) {
         showToast('入库失败：' + error.message, 'error');
     }
 }
