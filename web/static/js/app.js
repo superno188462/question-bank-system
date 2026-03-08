@@ -1186,7 +1186,7 @@ async function viewPendingQuestion(qId) {
             // 保存当前查看的题目 ID
             currentViewQuestionId = qId;
             
-            document.getElementById('detailModal').style.display = 'flex';
+            document.getElementById('detailModal').classList.add('active');
         } else {
             throw new Error(result.detail || '加载失败');
         }
