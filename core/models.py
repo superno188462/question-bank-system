@@ -7,13 +7,14 @@ from datetime import datetime
 from typing import List, Optional, Any
 from pydantic import BaseModel, Field, validator
 import uuid
+import re
 
 
 class CategoryBase(BaseModel):
     """分类基础模型"""
     name: str = Field(..., min_length=1, max_length=100, description="分类名称")
     description: Optional[str] = Field(None, max_length=500, description="分类描述")
-    parent_id: Optional[str] = Field(None, description="父分类ID，为空则为根分类")
+    parent_id: Optional[str] = Field(None, description="父分类 ID，为空则为根分类")
 
 
 class CategoryCreate(CategoryBase):
@@ -25,12 +26,12 @@ class CategoryUpdate(BaseModel):
     """更新分类请求模型"""
     name: Optional[str] = Field(None, min_length=1, max_length=100, description="分类名称")
     description: Optional[str] = Field(None, max_length=500, description="分类描述")
-    parent_id: Optional[str] = Field(None, description="父分类ID，用于移动分类")
+    parent_id: Optional[str] = Field(None, description="父分类 ID，用于移动分类")
 
 
 class Category(CategoryBase):
     """分类完整模型"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="分类ID")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="分类 ID")
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
     
@@ -51,7 +52,7 @@ class TagCreate(TagBase):
 
 class Tag(TagBase):
     """标签完整模型"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="标签ID")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="标签 ID")
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     
     class Config:
@@ -64,12 +65,13 @@ class QuestionBase(BaseModel):
     options: Optional[List[str]] = Field(default=[], description="选项列表（填空题为空列表）")
     answer: str = Field(..., min_length=1, description="正确答案（必填）")
     explanation: str = Field(..., min_length=1, description="题目解析（必填）")
-    category_id: str = Field(..., min_length=1, description="分类ID（必填）")
+    category_id: str = Field(..., min_length=1, description="分类 ID（必填）")
 
 
 class QuestionCreate(QuestionBase):
     """创建题目请求模型"""
-    tag_ids: Optional[List[str]] = Field(default=[], description="标签ID列表")
+    tag_ids: Optional[List[str]] = Field(default=[], description="标签 ID 列表")
+    category_id: Optional[str] = Field(None, description="分类 ID（可选）")
     
     @validator('options')
     def validate_options(cls, v):
@@ -88,9 +90,17 @@ class QuestionCreate(QuestionBase):
         """验证答案格式"""
         options = values.get('options')
         if options is not None and len(options) > 0:
-            # 如果是选择题，答案必须在选项中
+            # 如果是选择题，答案可以是选项索引（A/B/C/D）或选项内容
+            # 允许 A/B/C/D 格式（转换为对应选项）
+            if re.match(r'^[A-D]$', v.upper()):
+                # 答案是 A/B/C/D 格式，验证索引是否在范围内
+                index = ord(v.upper()) - ord('A')
+                if index >= len(options):
+                    raise ValueError(f"答案索引 {v} 超出选项范围 (0-{len(options)-1})")
+                return v.upper()  # 保持大写格式
+            # 否则答案必须是选项内容
             if v not in options:
-                raise ValueError(f"答案必须在选项中: {options}")
+                raise ValueError(f"答案必须在选项中：{options}")
         return v
 
 
@@ -100,13 +110,13 @@ class QuestionUpdate(BaseModel):
     options: Optional[List[str]] = Field(None, description="选项列表")
     answer: Optional[str] = Field(None, min_length=1, description="正确答案")
     explanation: Optional[str] = Field(None, description="题目解析")
-    category_id: Optional[str] = Field(None, description="分类ID")
-    tag_ids: Optional[List[str]] = Field(default=[], description="标签ID列表")
+    category_id: Optional[str] = Field(None, description="分类 ID")
+    tag_ids: Optional[List[str]] = Field(default=[], description="标签 ID 列表")
 
 
 class Question(QuestionBase):
     """题目完整模型"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="题目ID")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="题目 ID")
     category_name: Optional[str] = Field(None, description="分类名称")
     tags: List[Tag] = Field(default=[], description="标签列表")
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
@@ -118,7 +128,7 @@ class Question(QuestionBase):
 
 class QuestionWithTags(Question):
     """包含标签信息的题目模型"""
-    tag_ids: List[str] = Field(default=[], description="标签ID列表")
+    tag_ids: List[str] = Field(default=[], description="标签 ID 列表")
 
 
 class PaginatedResponse(BaseModel):

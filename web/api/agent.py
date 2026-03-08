@@ -279,15 +279,29 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
     })
     
     # 2. 创建正式题目
-    from core.database.repositories import QuestionRepository
+    from core.database.repositories import QuestionRepository, CategoryRepository
     from core.models import QuestionCreate
+    
+    # 如果没有分类 ID，使用默认分类（第一个根分类）
+    category_id = question.get('category_id')
+    if not category_id:
+        category_repo = CategoryRepository()
+        all_categories = category_repo.get_all()
+        # 找到根分类（parent_id 为 None 的分类）
+        root_category = next((c for c in all_categories if c.parent_id is None), None)
+        if root_category:
+            category_id = root_category.id
+            logging.info(f"使用默认分类：{category_id}")
+        else:
+            logging.warning("没有可用分类，创建题目可能失败")
     
     question_data = QuestionCreate(
         content=question['content'],
         options=question['options'],
         answer=question['answer'],
         explanation=question.get('explanation', ''),
-        category_id=question.get('category_id')
+        category_id=category_id,
+        tag_ids=[]
     )
     
     logging.info(f"创建正式题目：{question_data}")
