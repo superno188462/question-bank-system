@@ -43,6 +43,7 @@ data/*.sqlite3
 # Logs - 不提交日志文件
 *.log
 logs/*.log
+test/logs/
 
 # OS
 .DS_Store
