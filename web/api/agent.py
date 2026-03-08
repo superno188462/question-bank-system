@@ -259,7 +259,7 @@ async def update_staging_question(question_id: int, update_data: StagingQuestion
 
 @router.post("/staging/{question_id}/approve")
 async def approve_staging_question(question_id: int, reviewed_by: str = Form("system")):
-    """审核通过预备题目"""
+    """审核通过预备题目并删除预备记录"""
     import logging
     logging.info(f"审核预备题目 {question_id} 入库，reviewed_by: {reviewed_by}")
     
@@ -270,21 +270,9 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
             logging.error(f"预备题目 {question_id} 不存在")
             raise HTTPException(status_code=404, detail="题目不存在")
         
-        # 检查是否已经审核通过
-        if question.get('status') == 'approved':
-            logging.warning(f"预备题目 {question_id} 已经审核通过，跳过")
-            return SuccessResponse(success=True, message="题目已审核通过")
-        
         logging.info(f"预备题目数据：content={question['content'][:50]}..., category_id={question.get('category_id')}")
         
-        # 1. 更新预备题目数据（如果之前编辑过）
-        StagingQuestionRepository.update(question_id, {
-            'status': 'approved',
-            'reviewed_at': datetime.now().isoformat(),
-            'reviewed_by': reviewed_by
-        })
-        
-        # 2. 创建正式题目
+        # 1. 创建正式题目
         from core.database.repositories import QuestionRepository, CategoryRepository
         from core.models import QuestionCreate
         
@@ -317,6 +305,10 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
         created_question = question_repo.create(question_data)
         
         logging.info(f"正式题目创建成功，ID: {created_question.id}")
+        
+        # 2. 删除预备题目记录
+        StagingQuestionRepository.delete(question_id)
+        logging.info(f"预备题目 {question_id} 已删除")
         
         return SuccessResponse(success=True, message="审核通过")
         
