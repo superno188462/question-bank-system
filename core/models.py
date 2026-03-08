@@ -63,8 +63,8 @@ class QuestionBase(BaseModel):
     """题目基础模型 - 包含五个核心信息"""
     content: str = Field(..., min_length=1, description="题干内容（必填）")
     options: Optional[List[str]] = Field(default=[], description="选项列表（填空题为空列表）")
-    answer: str = Field(default="", description="正确答案（可为空，后续补充）")
-    explanation: str = Field(default="", description="题目解析（可为空，后续补充）")
+    answer: str = Field(..., min_length=1, description="正确答案（必填）")
+    explanation: str = Field(..., min_length=1, description="题目解析（必填）")
     category_id: str = Field(..., min_length=1, description="分类 ID（必填）")
 
 

@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from core.models import (
     StagingQuestion, StagingQuestionCreate, StagingQuestionUpdate,
@@ -261,6 +261,7 @@ async def update_staging_question(question_id: int, update_data: StagingQuestion
 async def approve_staging_question(question_id: int, reviewed_by: str = Form("system")):
     """审核通过预备题目并删除预备记录"""
     import logging
+    from pydantic import ValidationError
     logging.info(f"审核预备题目 {question_id} 入库，reviewed_by: {reviewed_by}")
     
     try:
@@ -312,11 +313,45 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
         
         return SuccessResponse(success=True, message="审核通过")
         
+    except ValidationError as e:
+        # 处理 Pydantic 验证错误，返回友好的中文提示
+        error_msg = _format_validation_error(e)
+        logging.warning(f"题目数据验证失败：{error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
     except HTTPException:
         raise
     except Exception as e:
         logging.error(f"审核失败：{str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"审核失败：{str(e)}")
+
+
+def _format_validation_error(error: ValidationError) -> str:
+    """将 Pydantic 验证错误转换为友好的中文提示"""
+    errors = error.errors()
+    messages = []
+    
+    for err in errors:
+        field = err.get('loc', ['字段'])[0]
+        error_type = err.get('type', '')
+        
+        # 映射字段名
+        field_names = {
+            'answer': '答案',
+            'explanation': '解析',
+            'content': '题干',
+            'category_id': '分类'
+        }
+        field_name = field_names.get(field, field)
+        
+        # 根据错误类型生成中文提示
+        if 'string_too_short' in error_type:
+            messages.append(f"{field_name}不能为空")
+        elif 'value_error' in error_type:
+            messages.append(f"{field_name}格式不正确")
+        else:
+            messages.append(f"{field_name}验证失败")
+    
+    return "，".join(messages)
 
 
 @router.post("/staging/{question_id}/reject")
