@@ -18,7 +18,8 @@
     "max_questions_per_image": 10,
     "max_questions_per_document": 50,
     "confidence_threshold": 0.6,
-    "max_file_size_mb": 50
+    "max_file_size_mb": 50,
+    "http_proxy": null
   },
   "allowed_extensions": {
     "images": ["png", "jpg", "jpeg", "gif", "webp"],

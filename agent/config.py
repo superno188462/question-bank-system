@@ -218,6 +218,13 @@ class AgentConfig:
     
     @classmethod
     @property
+    def HTTP_PROXY(cls) -> Optional[str]:
+        """HTTP 代理（可选）"""
+        config = cls._load_config()
+        return config.get("settings", {}).get("http_proxy", None)
+    
+    @classmethod
+    @property
     def MAX_FILE_SIZE_MB(cls) -> int:
         """最大文件大小（MB）"""
         config = cls._load_config()
