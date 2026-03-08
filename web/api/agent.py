@@ -5,6 +5,7 @@ AI Agent API 接口
 import os
 import tempfile
 import shutil
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body
 from fastapi.responses import JSONResponse
