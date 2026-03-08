@@ -1308,38 +1308,6 @@ async function viewPendingQuestion(qId) {
     }
 }
 
-// 通过预备题目
-async function approvePendingQuestion(qId) {
-    if (!confirm('确认将此题目审核通过并入库？')) return;
-    
-    try {
-        const formData = new FormData();
-        formData.append('reviewed_by', 'user');
-        
-        const response = await fetch(`/api/agent/staging/${qId}/approve`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({ detail: '操作失败' }));
-            throw new Error(err.detail || '操作失败');
-        }
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showToast('审核通过', 'success');
-            loadPendingQuestions();
-            loadQuestions();
-        } else {
-            throw new Error(result.detail || '操作失败');
-        }
-    } catch (error) {
-        showToast(`操作失败：${error.message}`, 'error');
-    }
-}
-
 // 拒绝预备题目
 async function rejectPendingQuestion(qId) {
     if (!confirm('确认拒绝此题目？')) return;
