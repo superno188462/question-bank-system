@@ -256,7 +256,28 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
     if not question:
         raise HTTPException(status_code=404, detail="题目不存在")
     
-    StagingQuestionRepository.approve(question_id, reviewed_by)
+    # 1. 更新预备题目数据（如果之前编辑过）
+    StagingQuestionRepository.update(question_id, {
+        'status': 'approved',
+        'reviewed_at': datetime.now().isoformat(),
+        'reviewed_by': reviewed_by
+    })
+    
+    # 2. 创建正式题目
+    from core.database.repositories import QuestionRepository
+    from core.schemas import QuestionCreate
+    
+    question_data = QuestionCreate(
+        content=question['content'],
+        options=question['options'],
+        answer=question['answer'],
+        explanation=question.get('explanation', ''),
+        category_id=question.get('category_id')
+    )
+    
+    question_repo = QuestionRepository()
+    question_repo.create(question_data)
+    
     return SuccessResponse(success=True, message="审核通过")
 
 
