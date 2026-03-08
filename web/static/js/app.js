@@ -852,10 +852,11 @@ function addChatMessage(text, sender) {
 // 加载预备题目
 async function loadPendingQuestions() {
     try {
-        const response = await fetch(`${API_BASE}/qa/pending`);
+        const response = await fetch(`${API_BASE}/agent/staging`);
         if (!response.ok) throw new Error('加载失败');
         
-        const questions = await response.json();
+        const result = await response.json();
+        const questions = result.data || [];
         const tbody = document.getElementById('pendingTableBody');
         
         if (questions.length === 0) {
@@ -869,8 +870,8 @@ async function loadPendingQuestions() {
                 <td>${escapeHtml(q.answer)}</td>
                 <td>${new Date(q.created_at).toLocaleString()}</td>
                 <td class="pending-actions">
-                    <button class="btn btn-sm btn-primary" onclick="viewPendingQuestion('${q.id}')">查看</button>
-                    <button class="btn btn-sm btn-secondary" onclick="approvePendingQuestion('${q.id}')">入库</button>
+                    <button class="btn btn-sm btn-primary" onclick="viewStagingQuestion('${q.id}')">👁️ 查看</button>
+                    <button class="btn btn-sm btn-success" onclick="approvePendingQuestion('${q.id}')">✓ 通过</button>
                     <button class="btn btn-sm btn-danger" onclick="rejectPendingQuestion('${q.id}')">删除</button>
                 </td>
             </tr>
@@ -916,7 +917,7 @@ async function rejectPendingQuestion(id) {
     if (!confirm('确定要删除这道预备题目吗？')) return;
     
     try {
-        const response = await fetch(`${API_BASE}/qa/pending/${id}`, {
+        const response = await fetch(`${API_BASE}/agent/staging/${id}`, {
             method: 'DELETE'
         });
         
@@ -1253,8 +1254,13 @@ async function loadPendingQuestions() {
 
 // 查看预备题目
 async function viewPendingQuestion(qId) {
+    // 别名：viewStagingQuestion
+    return viewStagingQuestion(qId);
+}
+
+async function viewStagingQuestion(qId) {
     try {
-        const response = await fetch(`/api/agent/staging/${qId}`);
+        const response = await fetch(`${API_BASE}/agent/staging/${qId}`);
         const result = await response.json();
         
         if (result.success) {
