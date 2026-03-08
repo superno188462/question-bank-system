@@ -724,12 +724,23 @@ async function saveQuestion() {
             }
             
             // 更新成功后自动入库
+            const approveFormData = new FormData();
+            approveFormData.append('reviewed_by', 'user');
+            
             const approveResponse = await fetch(`${API_BASE}/agent/staging/${id}/approve`, {
-                method: 'POST'
+                method: 'POST',
+                body: approveFormData
             });
             
             if (!approveResponse.ok) {
-                throw new Error('入库失败');
+                const err = await approveResponse.json().catch(() => ({ detail: '入库失败' }));
+                throw new Error(err.detail || '入库失败');
+            }
+            
+            const approveResult = await approveResponse.json();
+            
+            if (!approveResult.success) {
+                throw new Error(approveResult.detail || '入库失败');
             }
             
             closeModal('questionModal');
