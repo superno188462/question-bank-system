@@ -856,7 +856,13 @@ async function loadPendingQuestions() {
         if (!response.ok) throw new Error('加载失败');
         
         const result = await response.json();
-        const questions = result.data || [];
+        // API 返回结构：{success: true, data: {questions: [...], total: 0, ...}}
+        const dataObj = result.data || {};
+        let questions = dataObj.questions || [];
+        
+        // 只显示 pending 状态的题目
+        questions = questions.filter(q => q.status === 'pending');
+        
         const tbody = document.getElementById('pendingTableBody');
         
         if (questions.length === 0) {
@@ -870,14 +876,16 @@ async function loadPendingQuestions() {
                 <td>${escapeHtml(q.answer)}</td>
                 <td>${new Date(q.created_at).toLocaleString()}</td>
                 <td class="pending-actions">
-                    <button class="btn btn-sm btn-primary" onclick="viewStagingQuestion('${q.id}')">👁️ 查看</button>
-                    <button class="btn btn-sm btn-success" onclick="approvePendingQuestion('${q.id}')">✓ 通过</button>
-                    <button class="btn btn-sm btn-danger" onclick="rejectPendingQuestion('${q.id}')">删除</button>
+                    <button class="btn btn-sm btn-primary" onclick="viewStagingQuestion(${q.id})">👁️ 查看</button>
+                    <button class="btn btn-sm btn-success" onclick="approvePendingQuestion(${q.id})">✓ 通过</button>
+                    <button class="btn btn-sm btn-danger" onclick="rejectPendingQuestion(${q.id})">删除</button>
                 </td>
             </tr>
         `).join('');
     } catch (error) {
         console.error('加载预备题目失败:', error);
+        const tbody = document.getElementById('pendingTableBody');
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:red;">加载失败：${error.message}</td></tr>`;
     }
 }
 
@@ -900,9 +908,10 @@ async function approvePendingQuestion(id) {
         const result = await response.json();
         
         if (result.success) {
-            loadPendingQuestions();
-            loadQuestions();
             showToast('题目已入库', 'success');
+            // 重新加载预备题目和正式题目
+            await loadPendingQuestions();
+            await loadQuestions(null, 1);
         } else {
             throw new Error(result.detail || '入库失败');
         }
