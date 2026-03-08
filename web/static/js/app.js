@@ -872,18 +872,28 @@ async function loadPendingQuestions() {
 // 批准预备题目入库
 async function approvePendingQuestion(id) {
     try {
+        const formData = new FormData();
+        formData.append('reviewed_by', 'user');
+        
         const response = await fetch(`${API_BASE}/agent/staging/${id}/approve`, {
-            method: 'POST'
+            method: 'POST',
+            body: formData
         });
         
         if (!response.ok) {
-            const err = await response.json();
+            const err = await response.json().catch(() => ({ detail: '操作失败' }));
             throw new Error(err.detail || '入库失败');
         }
         
-        loadPendingQuestions();
-        loadQuestions();
-        showToast('题目已入库', 'success');
+        const result = await response.json();
+        
+        if (result.success) {
+            loadPendingQuestions();
+            loadQuestions();
+            showToast('题目已入库', 'success');
+        } else {
+            throw new Error(result.detail || '入库失败');
+        }
     } catch (error) {
         console.error('入库失败:', error);
         showToast('入库失败：' + error.message, 'error');
