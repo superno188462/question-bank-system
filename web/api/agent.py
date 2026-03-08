@@ -337,7 +337,6 @@ def _format_validation_error(error: ValidationError) -> str:
         # 映射字段名
         field_names = {
             'answer': '答案',
-            'explanation': '解析',
             'content': '题干',
             'category_id': '分类'
         }
