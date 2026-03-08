@@ -280,7 +280,7 @@ async def approve_staging_question(question_id: int, reviewed_by: str = Form("sy
     
     # 2. 创建正式题目
     from core.database.repositories import QuestionRepository
-    from core.schemas import QuestionCreate
+    from core.models import QuestionCreate
     
     question_data = QuestionCreate(
         content=question['content'],
