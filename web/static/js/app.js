@@ -1303,6 +1303,7 @@ async function loadAgentConfig() {
             if (config.settings) {
                 document.getElementById('confidence_threshold').value = config.settings.confidence_threshold || 0.6;
                 document.getElementById('max_file_size_mb').value = config.settings.max_file_size_mb || 50;
+                document.getElementById('http_proxy').value = config.settings.http_proxy || '';
             }
             
             loading.style.display = 'none';
@@ -1339,7 +1340,8 @@ async function saveAgentConfig() {
         },
         settings: {
             confidence_threshold: parseFloat(document.getElementById('confidence_threshold').value) || 0.6,
-            max_file_size_mb: parseInt(document.getElementById('max_file_size_mb').value) || 50
+            max_file_size_mb: parseInt(document.getElementById('max_file_size_mb').value) || 50,
+            http_proxy: document.getElementById('http_proxy').value.trim() || null
         }
     };
     

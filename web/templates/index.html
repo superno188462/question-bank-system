@@ -20,8 +20,8 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     
-    <link rel="stylesheet" href="/static/css/style.css?v=20260307-6">
-    <script src="/static/js/app.js?v=20260307-6"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260308-7">
+    <script src="/static/js/app.js?v=20260308-7"></script>
 </head>
 <body>
     <div class="container">
@@ -235,6 +235,11 @@
                                 <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">最大文件大小 (MB)</label>
                                 <input type="number" id="max_file_size_mb" class="form-input" value="50" min="1" max="100">
                                 <small style="color: var(--text-light); font-size: 12px;">防止超大文件消耗资源</small>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 14px;">HTTP 代理</label>
+                                <input type="text" id="http_proxy" class="form-input" placeholder="http://127.0.0.1:7890">
+                                <small style="color: var(--text-light); font-size: 12px;">可选，留空表示不使用代理</small>
                             </div>
                         </div>
                     </div>
