@@ -9,6 +9,20 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 import os
 
+# 加载 .env 环境变量文件（必须在最前面）
+try:
+    from dotenv import load_dotenv
+    # 加载项目根目录的 .env 文件
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_file = os.path.join(project_root, ".env")
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+        print(f"✅ 已加载环境变量：{env_file}")
+    else:
+        print(f"ℹ️  未找到 .env 文件，使用默认配置")
+except ImportError:
+    print("⚠️  未安装 python-dotenv，如需使用 .env 文件请安装：pip install python-dotenv")
+
 # 添加项目根目录到 Python 路径
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
