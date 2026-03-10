@@ -95,16 +95,24 @@ async def extract_from_image(files: List[UploadFile] = File(...)):
                         **q_data
                     ))
             
+            # 构建返回数据
+            response_data = {
+                "questions": saved_questions,
+                "total_count": len(saved_questions),
+                "source_type": result.get("source_type", "image"),
+                "source_files": result.get("source_files", [f.filename for f in files]),
+                "confidence": result.get("confidence", result.get("average_confidence", 0)),
+            }
+            
+            # 如果有错误信息，也返回（即使成功也可能有警告）
+            if result.get("error"):
+                response_data["error"] = result.get("error")
+                response_data["error_detail"] = result.get("error_detail", "")
+                response_data["solution"] = result.get("solution", "")
+            
             return SuccessResponse(
                 success=True,
-                data={
-                    "questions": saved_questions,
-                    "total_count": len(saved_questions),
-                    "source_type": result.get("source_type", "image"),
-                    "source_files": result.get("source_files", [f.filename for f in files]),
-                    "confidence": result.get("confidence", result.get("average_confidence", 0)),
-                    "error": result.get("error")
-                },
+                data=response_data,
                 message=f"成功提取 {len(saved_questions)} 道题目"
             )
             
@@ -115,9 +123,18 @@ async def extract_from_image(files: List[UploadFile] = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"提取失败：{str(e)}"
+        # 返回详细错误信息而不是抛出异常
+        import logging
+        logging.error(f"图片提取失败：{str(e)}", exc_info=True)
+        
+        return SuccessResponse(
+            success=False,
+            data={
+                "error": "提取失败",
+                "error_detail": str(e),
+                "solution": "请查看日志获取详细信息，或联系技术支持"
+            },
+            message="提取失败"
         )
 
 
@@ -189,9 +206,17 @@ async def extract_from_document(files: List[UploadFile] = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"提取失败：{str(e)}"
+        import logging
+        logging.error(f"文档提取失败：{str(e)}", exc_info=True)
+        
+        return SuccessResponse(
+            success=False,
+            data={
+                "error": "提取失败",
+                "error_detail": str(e),
+                "solution": "请查看日志获取详细信息，或联系技术支持"
+            },
+            message="提取失败"
         )
 
 
