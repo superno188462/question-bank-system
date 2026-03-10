@@ -4,6 +4,7 @@
 """
 import json
 import re
+import ssl
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
@@ -120,12 +121,41 @@ class ImageExtractor:
                 "error": f"JSON 解析失败：{str(e)}",
                 "raw_response": response[:500] if 'response' in dir() else ""
             }
-        except Exception as e:
+        except ssl.SSLCertVerificationError as e:
             return {
                 "questions": [],
                 "total_count": 0,
                 "confidence": 0.0,
-                "error": str(e)
+                "error": "SSL 证书验证失败",
+                "error_detail": "API 服务器的 SSL 证书不受信任。请联系管理员检查 VERIFY_SSL 配置或安装正确的 CA 证书。",
+                "solution": "设置环境变量 VERIFY_SSL=false 可临时禁用 SSL 验证（仅开发环境）"
+            }
+        except Exception as e:
+            error_msg = str(e)
+            # 提取友好的错误信息
+            if "CERTIFICATE_VERIFY_FAILED" in error_msg or "ssl" in error_msg.lower():
+                error_detail = "SSL 证书验证失败，可能是自签名证书或证书链不完整"
+                solution = "设置环境变量 VERIFY_SSL=false 可临时禁用 SSL 验证（仅开发环境）"
+            elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
+                error_detail = "网络连接失败，请检查网络或 API 服务是否可用"
+                solution = "检查网络连接，确认 API 服务正常运行"
+            elif "api_key" in error_msg.lower() or "unauthorized" in error_msg.lower() or "401" in error_msg:
+                error_detail = "API Key 无效或已过期"
+                solution = "在设置页面检查并更新 API Key 配置"
+            elif "model" in error_msg.lower() or "not found" in error_msg.lower():
+                error_detail = "指定的模型不可用"
+                solution = "在设置页面检查模型配置是否正确"
+            else:
+                error_detail = error_msg
+                solution = "请查看日志获取详细信息，或联系技术支持"
+            
+            return {
+                "questions": [],
+                "total_count": 0,
+                "confidence": 0.0,
+                "error": self._get_friendly_error_name(e),
+                "error_detail": error_detail,
+                "solution": solution
             }
     
     def extract_batch(self, image_paths: List[str]) -> Dict[str, Any]:
@@ -202,6 +232,20 @@ class ImageExtractor:
         """获取当前时间戳"""
         from datetime import datetime
         return datetime.now().isoformat()
+    
+    def _get_friendly_error_name(self, exception: Exception) -> str:
+        """获取友好的错误名称"""
+        error_msg = str(exception).lower()
+        if "certificate" in error_msg or "ssl" in error_msg:
+            return "证书验证失败"
+        elif "connection" in error_msg or "timeout" in error_msg:
+            return "网络连接失败"
+        elif "api_key" in error_msg or "unauthorized" in error_msg or "401" in error_msg:
+            return "认证失败"
+        elif "model" in error_msg or "not found" in error_msg:
+            return "模型不可用"
+        else:
+            return "提取失败"
     
     def close(self):
         """关闭客户端"""

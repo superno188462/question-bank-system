@@ -1294,7 +1294,22 @@ async function uploadAndExtract() {
                 loadPendingQuestions();
             }, 2000);
         } else {
-            throw new Error(result.detail || '提取失败');
+            // 提取失败，显示详细错误信息
+            const errorInfo = result.data || result;
+            const errorName = errorInfo.error || '提取失败';
+            const errorDetail = errorInfo.error_detail || errorInfo.detail || result.detail || '未知错误';
+            const solution = errorInfo.solution || '';
+            
+            statusSpan.textContent = `❌ ${errorName}`;
+            
+            // 显示详细错误和解决方案
+            let errorMsg = errorDetail;
+            if (solution) {
+                errorMsg += '\n\n💡 解决方案：' + solution;
+            }
+            
+            detailDiv.textContent = errorMsg;
+            showToast(`${errorName}：${errorDetail}`, 'error');
         }
     } catch (error) {
         statusSpan.textContent = '❌ 提取失败';

@@ -2,6 +2,7 @@
 通用模型客户端
 支持 OpenAI 兼容 API（千问、DeepSeek、GPT 等）
 """
+import os
 import base64
 import mimetypes
 from typing import Union, List, Optional
@@ -26,13 +27,17 @@ class ModelClient:
         self.api_key = self.config.get("api_key", "")
         self.base_url = self.config.get("base_url", "")
         
-        # 配置 HTTP 客户端（支持代理）
+        # 配置 HTTP 客户端（支持代理和 SSL 验证）
         proxy = AgentConfig.HTTP_PROXY
+        # SSL 验证配置（可通过环境变量控制）
+        # VERIFY_SSL=false 禁用 SSL 验证（解决自签名证书问题）
+        verify_ssl = os.getenv("VERIFY_SSL", "true").lower() == "true"
+        
         if proxy:
-            transport = HTTPTransport(proxy=proxy, verify=False)
-            self.http_client = httpx.Client(timeout=60.0, transport=transport)
+            transport = HTTPTransport(proxy=proxy, verify=verify_ssl)
+            self.http_client = httpx.Client(timeout=60.0, transport=transport, verify=verify_ssl)
         else:
-            self.http_client = httpx.Client(timeout=60.0)
+            self.http_client = httpx.Client(timeout=60.0, verify=verify_ssl)
     
     def _encode_image(self, image_path: str) -> str:
         """将本地图片编码为 base64"""
