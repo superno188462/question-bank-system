@@ -3,9 +3,9 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <h2 class="page-title">
-        <el-icon><ChatDotRound /></el-icon> AI智能提问
+        <el-icon><ChatDotRound /></el-icon> AI 智能提问
       </h2>
-      <p class="page-description">输入自然语言问题，AI将从题库中查找相关题目并给出答案</p>
+      <p class="page-description">输入自然语言问题，AI 将从题库中查找相关题目并给出答案</p>
     </div>
 
     <!-- 提问区域 -->
@@ -15,21 +15,21 @@
           v-model="question"
           type="textarea"
           :rows="4"
-          placeholder="请输入您的问题，例如：Python中如何定义一个函数？或者上传图片..."
+          placeholder="请输入您的问题，例如：Python 中如何定义一个函数？或者上传图片..."
           maxlength="1000"
           show-word-limit
           class="ask-input"
         />
         
-        <!-- 图片上传（预留） -->
+        <!-- 图片上传 -->
         <div class="upload-section">
           <el-upload
             class="upload-demo"
-            action="#"
             :auto-upload="false"
             :on-change="handleFileChange"
             :show-file-list="false"
             accept="image/*,.pdf,.doc,.docx"
+            :http-request="handleFileUpload"
           >
             <el-button type="text">
               <el-icon><Picture /></el-icon> 上传图片或文档
@@ -52,7 +52,7 @@
             :disabled="!question.trim() && !uploadedFile"
           >
             <el-icon><Search /></el-icon>
-            {{ loading ? 'AI思考中...' : '开始提问' }}
+            {{ loading ? 'AI 思考中...' : '开始提问' }}
           </el-button>
           <el-button size="large" @click="handleClear">
             <el-icon><Delete /></el-icon> 清空
@@ -67,13 +67,13 @@
         <template #header>
           <div class="answer-header">
             <span class="answer-title">
-              <el-icon><ChatLineRound /></el-icon> AI回答
+              <el-icon><ChatLineRound /></el-icon> AI 回答
             </span>
             <el-button 
               type="success" 
               size="small" 
               @click="handleAddToPending"
-              :disabled="isAddedToPending"
+              :disabled="isAddedToPending || !answer.suggested_question"
             >
               <el-icon><Plus /></el-icon>
               {{ isAddedToPending ? '已添加到预备' : '添加到预备题库' }}
@@ -139,7 +139,7 @@
                   {{ getCategoryName(related.category_id) }}
                 </el-tag>
                 <span class="similarity-score">
-                  相似度: {{ Math.round((related.similarity || 0.85) * 100) }}%
+                  相似度：{{ Math.round((related.similarity || 0.85) * 100) }}%
                 </span>
               </div>
             </div>
@@ -177,15 +177,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCategoryStore } from '@/stores/category'
-import { useQuestionStore } from '@/stores/question'
+import { questionApi, type ExtractResult } from '@/api/question'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const categoryStore = useCategoryStore()
-const questionStore = useQuestionStore()
 
 // 状态
 const question = ref('')
@@ -211,6 +210,12 @@ const handleFileChange = (file: any) => {
   uploadedFile.value = file.raw
 }
 
+// 处理文件上传（阻止自动上传）
+const handleFileUpload = () => {
+  // 不执行任何操作，由 handleAsk 统一处理
+  return Promise.resolve()
+}
+
 // 清除文件
 const clearFile = () => {
   uploadedFile.value = null
@@ -227,55 +232,78 @@ const handleAsk = async () => {
   isAddedToPending.value = false
 
   try {
-    // TODO: 调用AI API
-    // const result = await questionStore.askAI(question.value)
+    let result
     
-    // 模拟AI回答
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    answer.value = {
-      answer: `在Python中，使用 def 关键字来定义函数。\n\n基本语法：\ndef 函数名(参数1, 参数2, ...):\n    """文档字符串（可选）"""\n    # 函数体\n    return 返回值\n\n示例：\ndef greet(name):\n    return f"Hello, {name}!"`,
-      suggested_question: {
-        content: 'Python中如何定义一个函数？',
-        options: [
-          '使用 def 关键字',
-          '使用 function 关键字',
-          '使用 func 关键字',
-          '使用 define 关键字'
-        ],
-        answer: '使用 def 关键字',
-        explanation: '在Python中，使用def关键字来定义函数，后面跟着函数名和参数列表。这是Python函数定义的标准语法。',
-        category_id: categoryStore.categoryTree[0]?.id || ''
-      },
-      related_questions: [
-        {
-          id: '1',
-          content: 'Python函数的参数传递方式有哪些？',
-          category_id: categoryStore.categoryTree[0]?.id || '',
-          similarity: 0.92
-        },
-        {
-          id: '2',
-          content: 'Python中lambda函数的使用方法',
-          category_id: categoryStore.categoryTree[0]?.id || '',
-          similarity: 0.85
-        },
-        {
-          id: '3',
-          content: 'Python函数的装饰器是什么？',
-          category_id: categoryStore.categoryTree[0]?.id || '',
-          similarity: 0.78
-        }
-      ]
+    // 如果有上传文件，调用图片/文档提取 API
+    if (uploadedFile.value) {
+      const file = uploadedFile.value
+      const isImage = file.type.startsWith('image/')
+      
+      ElMessage.info(`正在${isImage ? '提取图片' : '提取文档'}中的题目...`)
+      
+      if (isImage) {
+        // 调用图片提取 API
+        result = await questionApi.extractFromImage(file)
+      } else {
+        // 调用文档提取 API
+        result = await questionApi.extractFromDocument(file)
+      }
+      
+      // 处理提取结果（后端返回 SuccessResponse，数据在 data 字段中）
+      const extractData = result.data || result
+      
+      if (extractData.error) {
+        throw new Error(extractData.error)
+      }
+      
+      if (extractData.total_count === 0) {
+        throw new Error('未能从文件中提取到题目')
+      }
+      
+      // 构建回答
+      const firstQuestion = extractData.questions[0]
+      answer.value = {
+        answer: `已从${isImage ? '图片' : '文档'}中提取到 ${extractData.total_count} 道题目，置信度：${Math.round(extractData.confidence * 100)}%`,
+        suggested_question: firstQuestion ? {
+          content: firstQuestion.content || '',
+          options: firstQuestion.options || [],
+          answer: firstQuestion.answer || '',
+          explanation: firstQuestion.explanation || '',
+          category_id: categoryStore.categoryTree[0]?.id || ''
+        } : undefined,
+        related_questions: [],
+        extracted_from_file: true,
+        source_type: isImage ? 'image' : 'document',
+        source_file: file.name
+      }
+      
+      ElMessage.success(result.message || `成功提取 ${extractData.total_count} 道题目`)
+    } else {
+      // 纯文本提问，调用 AI 问答 API
+      result = await questionApi.askAI(question.value)
+      
+      answer.value = {
+        answer: result.answer,
+        suggested_question: result.suggested_question ? {
+          content: result.suggested_question.content,
+          options: result.suggested_question.options,
+          answer: result.suggested_question.answer,
+          explanation: result.suggested_question.explanation,
+          category_id: result.suggested_question.category_id
+        } : undefined,
+        related_questions: result.related_questions || []
+      }
+      
+      ElMessage.success('AI 回答生成成功')
     }
 
     // 添加到历史
-    addToHistory(question.value)
-
-    ElMessage.success('AI回答生成成功')
-  } catch (error) {
-    ElMessage.error('AI回答生成失败')
-    console.error(error)
+    if (!uploadedFile.value) {
+      addToHistory(question.value)
+    }
+  } catch (error: any) {
+    console.error('提问失败:', error)
+    ElMessage.error(error.message || '操作失败，请重试')
   } finally {
     loading.value = false
   }
@@ -297,7 +325,7 @@ const handleAddToPending = async () => {
   }
 
   try {
-    // TODO: 调用API添加到预备表
+    // TODO: 调用 API 添加到预备表
     // await questionStore.addToPending(answer.value.suggested_question)
     
     isAddedToPending.value = true
@@ -308,10 +336,10 @@ const handleAddToPending = async () => {
 }
 
 // 查看相关题目
-const handleViewRelated = (question: any) => {
+const handleViewRelated = (questionItem: any) => {
   router.push({
     path: '/questions',
-    query: { highlight: question.id }
+    query: { highlight: questionItem.id }
   })
 }
 
@@ -322,7 +350,7 @@ const addToHistory = (q: string) => {
     time: new Date().toISOString()
   })
   
-  // 只保留最近10条
+  // 只保留最近 10 条
   if (history.value.length > 10) {
     history.value = history.value.slice(0, 10)
   }

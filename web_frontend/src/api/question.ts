@@ -62,6 +62,15 @@ export interface PendingQuestion {
   updated_at: string
 }
 
+export interface ExtractResult {
+  questions: any[]
+  total_count: number
+  confidence: number
+  error?: string
+  source_type?: string
+  source_file?: string
+}
+
 export const questionApi = {
   // 获取题目列表
   async getQuestions(filter: QuestionFilter = {}): Promise<PaginatedResponse> {
@@ -100,7 +109,7 @@ export const questionApi = {
     return api.get(`/questions/search?keyword=${encodeURIComponent(keyword)}`)
   },
 
-  // AI提问功能
+  // AI 提问功能
   async askAI(question: string): Promise<{
     answer: string
     related_questions: Question[]
@@ -124,8 +133,32 @@ export const questionApi = {
     return api.delete(`/pending-questions/${id}`)
   },
 
-  // 获取AI解析
+  // 获取 AI 解析
   async getAIExplanation(questionId: string): Promise<{ explanation: string }> {
-    return api.get(`/questions/${id}/ai-explanation`)
+    return api.get(`/questions/${questionId}/ai-explanation`)
+  },
+
+  // 从图片提取题目
+  async extractFromImage(file: File): Promise<ExtractResult> {
+    const formData = new FormData()
+    formData.append('files', file)
+    
+    return api.post('/agent/extract/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  },
+
+  // 从文档提取题目
+  async extractFromDocument(file: File): Promise<ExtractResult> {
+    const formData = new FormData()
+    formData.append('files', file)
+    
+    return api.post('/agent/extract/document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
   }
 }
