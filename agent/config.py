@@ -6,7 +6,7 @@ Agent 配置模块
 import os
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 
 class AgentConfig:
@@ -305,3 +305,59 @@ class AgentConfig:
                 if api_key:
                     safe_config[key]["api_key"] = api_key[:10] + "..." + api_key[-5:] if len(api_key) > 15 else "***"
         return safe_config
+    
+    # ========== OCR 配置 ==========
+    
+    @classmethod
+    @property
+    def OCR_ENABLED(cls) -> bool:
+        """是否启用 OCR 备选方案"""
+        config = cls._load_config()
+        return config.get("ocr", {}).get("enabled", True)
+    
+    @classmethod
+    @property
+    def OCR_ENGINE(cls) -> str:
+        """首选 OCR 引擎（paddle/tesseract）"""
+        config = cls._load_config()
+        return config.get("ocr", {}).get("engine", "paddle")
+    
+    @classmethod
+    @property
+    def OCR_LANG(cls) -> str:
+        """OCR 识别语言"""
+        config = cls._load_config()
+        return config.get("ocr", {}).get("lang", "ch")
+    
+    @classmethod
+    @property
+    def OCR_FALLBACK_ENGINES(cls) -> List[str]:
+        """备选 OCR 引擎列表"""
+        config = cls._load_config()
+        return config.get("ocr", {}).get("fallback_engines", ["tesseract"])
+    
+    @classmethod
+    @property
+    def OCR_CONFIDENCE_THRESHOLD(cls) -> float:
+        """OCR 置信度阈值"""
+        config = cls._load_config()
+        return config.get("ocr", {}).get("confidence_threshold", 0.5)
+    
+    @classmethod
+    @property
+    def VISION_FALLBACK_THRESHOLD(cls) -> float:
+        """视觉模型置信度低于此值时触发降级"""
+        config = cls._load_config()
+        return config.get("settings", {}).get("vision_fallback_threshold", 0.5)
+    
+    @classmethod
+    def get_ocr_config(cls) -> dict:
+        """获取 OCR 配置"""
+        config = cls._load_config()
+        return {
+            "enabled": cls.OCR_ENABLED,
+            "engine": cls.OCR_ENGINE,
+            "lang": cls.OCR_LANG,
+            "fallback_engines": cls.OCR_FALLBACK_ENGINES,
+            "confidence_threshold": cls.OCR_CONFIDENCE_THRESHOLD,
+        }
