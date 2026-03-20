@@ -87,6 +87,18 @@ class EmbeddingService:
                 raise
         
         return embeddings
+    
+    def get_model_version(self) -> str:
+        """
+        获取模型版本标识
+        
+        Returns:
+            模型版本字符串（用于追踪向量化使用的模型）
+        """
+        # 使用模型名称作为版本标识
+        # 对于 Ollama 模型，直接使用模型名
+        # 对于 API 模型，使用模型名
+        return self.model_name
 
 
 # 缓存实例（避免重复创建）

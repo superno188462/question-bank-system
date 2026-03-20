@@ -6,7 +6,14 @@
 2. 执行入库操作
 3. 验证正式题目创建成功
 4. 验证预备题目状态更新
+
+注意：这是一个手动测试脚本，不是 pytest 测试
+运行方式：python tests/test_approve_staging.py
 """
+
+import pytest
+# 跳过 pytest 收集，因为这是手动测试脚本
+pytestmark = pytest.mark.skip(reason="这是手动测试脚本，请使用 python tests/test_approve_staging.py 运行")
 
 import sys
 import os

@@ -14,7 +14,7 @@ from datetime import datetime
 from core.database.connection import db
 
 # 迁移版本号
-MIGRATION_VERSION = "20260307"
+MIGRATION_VERSION = "20260308"
 
 # 期望的表结构定义
 EXPECTED_SCHEMA = {
@@ -27,7 +27,11 @@ EXPECTED_SCHEMA = {
             "explanation": "TEXT",
             "category_id": "TEXT",
             "created_at": "TEXT",
-            "updated_at": "TEXT"
+            "updated_at": "TEXT",
+            "embedding": "BLOB",
+            "embedding_version": "TEXT",
+            "content_hash": "TEXT",
+            "embedding_updated_at": "TEXT"
         }
     },
     "categories": {
@@ -340,6 +344,10 @@ def apply_schema_migrations():
     print("检查表结构变更...")
     ensure_migrations_table()
     add_column_if_not_exists("questions", "options", "TEXT", "DEFAULT '[]'")
+    add_column_if_not_exists("questions", "embedding", "BLOB")
+    add_column_if_not_exists("questions", "embedding_version", "TEXT")
+    add_column_if_not_exists("questions", "content_hash", "TEXT")
+    add_column_if_not_exists("questions", "embedding_updated_at", "TEXT")
     print("✅ 表结构检查完成")
 
 
@@ -375,7 +383,7 @@ def migrate_database(auto: bool = True):
         
         applied = get_applied_migrations()
         if MIGRATION_VERSION not in applied:
-            record_migration(MIGRATION_VERSION, "AI Agent 功能 - 预备题目和问答日志")
+            record_migration(MIGRATION_VERSION, "向量版本追踪 - 支持模型切换无需重复计算")
             print(f"✅ 迁移版本：{MIGRATION_VERSION}")
         
         if auto:

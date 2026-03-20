@@ -3,17 +3,17 @@
     <!-- 页面标题和操作 -->
     <div class="page-header">
       <h2 class="page-title">
-        <el-icon><Document /></el-icon> 题目管理
+        <el-icon><Document /></el-icon> {{ t('question.management') }}
         <span v-if="currentCategory" class="current-category">
           - {{ currentCategory.name }}
         </span>
       </h2>
       <div class="page-actions">
         <el-button type="primary" @click="handleCreateQuestion">
-          <el-icon><Plus /></el-icon> 添加题目
+          <el-icon><Plus /></el-icon> {{ t('question.addQuestion') }}
         </el-button>
         <el-button @click="refreshQuestions">
-          <el-icon><Refresh /></el-icon> 刷新
+          <el-icon><Refresh /></el-icon> {{ t('common.refresh') }}
         </el-button>
       </div>
     </div>
@@ -21,10 +21,10 @@
     <!-- 筛选条件 -->
     <el-card class="filter-card">
       <el-form :model="filter" inline>
-        <el-form-item label="关键词">
+        <el-form-item :label="t('question.keyword')">
           <el-input
             v-model="filter.keyword"
-            placeholder="搜索题干、答案或解析"
+            :placeholder="t('question.searchPlaceholder')"
             prefix-icon="Search"
             clearable
             @keyup.enter="handleSearch"
@@ -32,10 +32,10 @@
           />
         </el-form-item>
         
-        <el-form-item label="标签">
+        <el-form-item :label="t('question.tags')">
           <el-select
             v-model="filter.tag_id"
-            placeholder="选择标签"
+            :placeholder="t('question.selectTag')"
             clearable
             style="width: 120px;"
           >
@@ -53,24 +53,24 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="题目类型">
+        <el-form-item :label="t('question.type')">
           <el-select
             v-model="filter.question_type"
-            placeholder="选择类型"
+            :placeholder="t('question.selectType')"
             clearable
             style="width: 120px;"
           >
-            <el-option label="选择题" value="choice" />
-            <el-option label="填空题" value="blank" />
+            <el-option :label="t('question.choice')" value="choice" />
+            <el-option :label="t('question.blank')" value="blank" />
           </el-select>
         </el-form-item>
         
         <el-form-item>
           <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon> 搜索
+            <el-icon><Search /></el-icon> {{ t('common.search') }}
           </el-button>
           <el-button @click="handleReset">
-            <el-icon><Refresh /></el-icon> 重置
+            <el-icon><Refresh /></el-icon> {{ t('common.reset') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -80,7 +80,7 @@
     <el-card class="question-table-card">
       <template #header>
         <div class="table-header">
-          <span>题目列表 ({{ pagination?.total || 0 }} 条)</span>
+          <span>{{ t('question.questionList') }} ({{ pagination?.total || 0 }} {{ t('common.items') }})</span>
           <div class="table-actions">
             <el-pagination
               v-model:current-page="filter.page"
@@ -101,7 +101,7 @@
         style="width: 100%"
         @sort-change="handleSortChange"
       >
-        <el-table-column prop="content" label="题干" min-width="300">
+        <el-table-column prop="content" :label="t('question.content')" min-width="300">
           <template #default="{ row }">
             <div class="question-content">
               <div class="content-text" v-html="formatContent(row.content)"></div>
@@ -120,7 +120,7 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="answer" label="答案" width="120">
+        <el-table-column prop="answer" :label="t('question.answer')" width="120">
           <template #default="{ row }">
             <el-tag 
               :type="row.options && row.options.length > 0 ? 'success' : 'info'"
@@ -131,7 +131,7 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="category" label="分类" width="150">
+        <el-table-column prop="category" :label="t('question.category')" width="150">
           <template #default="{ row }">
             <el-tag size="small">
               {{ getCategoryName(row.category_id) }}
@@ -139,7 +139,7 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="tags" label="标签" width="150">
+        <el-table-column prop="tags" :label="t('question.tags')" width="150">
           <template #default="{ row }">
             <div class="tags">
               <el-tag
@@ -155,19 +155,19 @@
           </template>
         </el-table-column>
         
-        <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+        <el-table-column prop="created_at" :label="t('question.createdAt')" width="180" sortable>
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column :label="t('common.actions')" width="200" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
               size="small"
               @click="handleViewQuestion(row)"
-              title="查看"
+              :title="t('common.view')"
             >
               <el-icon><View /></el-icon>
             </el-button>
@@ -175,7 +175,7 @@
               type="warning"
               size="small"
               @click="handleEditQuestion(row)"
-              title="编辑"
+              :title="t('common.edit')"
             >
               <el-icon><Edit /></el-icon>
             </el-button>
@@ -183,7 +183,7 @@
               type="danger"
               size="small"
               @click="handleDeleteQuestion(row)"
-              title="删除"
+              :title="t('common.delete')"
             >
               <el-icon><Delete /></el-icon>
             </el-button>
@@ -195,7 +195,7 @@
     <!-- 查看题目对话框 -->
     <el-dialog
       v-model="viewDialogVisible"
-      title="题目详情"
+      :title="t('question.viewQuestion')"
       width="800px"
     >
       <QuestionDetail
@@ -225,16 +225,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useCategoryStore } from '@/stores/category'
 import { useQuestionStore } from '@/stores/question'
 import QuestionForm from '@/components/QuestionForm.vue'
 import QuestionDetail from '@/components/QuestionDetail.vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const categoryStore = useCategoryStore()
 const questionStore = useQuestionStore()
 
@@ -256,13 +259,13 @@ const editDialogVisible = ref(false)
 const viewingQuestion = ref<any>(null)
 const editingQuestion = ref<any>(null)
 
-// 可用标签（需要从API获取，这里先模拟）
+// 可用标签（需要从 API 获取，这里先模拟）
 const availableTags = ref([
-  { id: '1', name: '易', color: '#10b981' },
-  { id: '2', name: '中', color: '#f59e0b' },
-  { id: '3', name: '难', color: '#ef4444' },
-  { id: '4', name: '重点', color: '#8b5cf6' },
-  { id: '5', name: '考点', color: '#3b82f6' }
+  { id: '1', name: t('difficulty.easy'), color: '#10b981' },
+  { id: '2', name: t('difficulty.medium'), color: '#f59e0b' },
+  { id: '3', name: t('difficulty.hard'), color: '#ef4444' },
+  { id: '4', name: t('difficulty.keyPoint'), color: '#8b5cf6' },
+  { id: '5', name: t('difficulty.examPoint'), color: '#3b82f6' }
 ])
 
 // 计算属性
@@ -280,13 +283,13 @@ const currentCategory = computed(() => {
 
 // 对话框标题
 const dialogTitle = computed(() => {
-  return editingQuestion.value ? '编辑题目' : '添加题目'
+  return editingQuestion.value ? t('question.editQuestion') : t('question.addQuestion')
 })
 
 // 获取分类名称
 const getCategoryName = (categoryId: string) => {
   const category = categoryStore.getCategoryById(categoryId)
-  return category?.name || '未知分类'
+  return category?.name || t('common.noData')
 }
 
 // 格式化内容（高亮关键词）
@@ -300,7 +303,7 @@ const formatContent = (content: string) => {
 
 // 格式化日期
 const formatDate = (date: string) => {
-  return dayjs(date).format('YYYY-MM-DD HH:mm')
+  return dayjs(date).format(t('time.format'))
 }
 
 // 刷新题目
@@ -375,17 +378,17 @@ const handleEditFromView = (question: any) => {
 const handleDeleteQuestion = async (question: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除题目吗？此操作不可恢复。`,
-      '警告',
+      t('question.confirmDelete'),
+      t('common.warning'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning'
       }
     )
     
     await questionStore.deleteQuestion(question.id)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('question.deleteSuccess'))
   } catch (error) {
     // 用户取消删除
   }
@@ -395,24 +398,21 @@ const handleDeleteQuestion = async (question: any) => {
 const handleQuestionSubmit = async (data: any) => {
   try {
     if (editingQuestion.value) {
-      // 更新题目
       await questionStore.updateQuestion(editingQuestion.value.id, data)
-      ElMessage.success('更新成功')
+      ElMessage.success(t('question.updateSuccess'))
     } else {
-      // 创建题目
       await questionStore.createQuestion(data)
-      ElMessage.success('创建成功')
+      ElMessage.success(t('question.createSuccess'))
     }
     editDialogVisible.value = false
   } catch (error) {
-    // 错误已在store中处理
+    // 错误已在 store 中处理
   }
 }
 
-// AI生成解析
+// AI 生成解析
 const handleAIExplanation = async () => {
-  // TODO: 实现AI生成解析功能
-  ElMessage.info('AI生成解析功能开发中...')
+  ElMessage.info(t('ai.explanationGenerating'))
 }
 
 // 监听路由变化

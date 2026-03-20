@@ -61,11 +61,11 @@ class Tag(TagBase):
 
 class QuestionBase(BaseModel):
     """题目基础模型 - 包含五个核心信息"""
-    content: str = Field(..., min_length=1, description="题干内容（必填）")
+    content: str = Field(..., min_length=1, max_length=10000, description="题干内容（必填）")
     options: Optional[List[str]] = Field(default=[], description="选项列表（填空题为空列表）")
-    answer: str = Field(..., min_length=1, description="正确答案（必填）")
-    explanation: str = Field(default="", description="题目解析（可选）")
-    category_id: str = Field(..., min_length=1, description="分类 ID（必填）")
+    answer: str = Field(..., min_length=1, max_length=1000, description="正确答案（必填）")
+    explanation: str = Field(default="", max_length=5000, description="题目解析（可选）")
+    category_id: str = Field(..., min_length=1, max_length=100, description="分类 ID（必填）")
 
 
 class QuestionCreate(QuestionBase):
@@ -106,11 +106,11 @@ class QuestionCreate(QuestionBase):
 
 class QuestionUpdate(BaseModel):
     """更新题目请求模型"""
-    content: Optional[str] = Field(None, min_length=1, description="题干内容")
+    content: Optional[str] = Field(None, min_length=1, max_length=10000, description="题干内容")
     options: Optional[List[str]] = Field(None, description="选项列表")
-    answer: Optional[str] = Field(None, min_length=1, description="正确答案")
-    explanation: Optional[str] = Field(None, description="题目解析")
-    category_id: Optional[str] = Field(None, description="分类 ID")
+    answer: Optional[str] = Field(None, min_length=1, max_length=1000, description="正确答案")
+    explanation: Optional[str] = Field(None, max_length=5000, description="题目解析")
+    category_id: Optional[str] = Field(None, max_length=100, description="分类 ID")
     tag_ids: Optional[List[str]] = Field(default=[], description="标签 ID 列表")
 
 
@@ -160,13 +160,13 @@ class SuccessResponse(BaseModel):
 class StagingQuestionBase(BaseModel):
     """预备题目基础模型"""
     source_type: str = Field(..., description="来源类型：image|document|chat")
-    source_file: Optional[str] = Field(None, description="原始文件名")
-    content: str = Field(..., min_length=1, description="题干内容")
+    source_file: Optional[str] = Field(None, max_length=255, description="原始文件名")
+    content: str = Field(..., min_length=1, max_length=10000, description="题干内容")
     type: str = Field(..., description="题型：single_choice|multiple_choice|fill_blank|judgment|short_answer")
     options: Optional[List[str]] = Field(default=[], description="选项列表")
-    answer: str = Field(..., description="正确答案")
-    explanation: str = Field(default="", description="解析")
-    category_id: Optional[str] = Field(None, description="分类 ID")
+    answer: str = Field(..., min_length=1, max_length=1000, description="正确答案")
+    explanation: str = Field(default="", max_length=5000, description="解析")
+    category_id: Optional[str] = Field(None, max_length=100, description="分类 ID")
     tags: Optional[List[str]] = Field(default=[], description="标签列表")
     confidence: float = Field(default=1.0, ge=0, le=1, description="AI 置信度")
 
@@ -178,12 +178,12 @@ class StagingQuestionCreate(StagingQuestionBase):
 
 class StagingQuestionUpdate(BaseModel):
     """更新预备题目请求模型"""
-    content: Optional[str] = Field(None, description="题干内容")
+    content: Optional[str] = Field(None, min_length=1, max_length=10000, description="题干内容")
     type: Optional[str] = Field(None, description="题型")
     options: Optional[List[str]] = Field(None, description="选项列表")
-    answer: Optional[str] = Field(None, description="正确答案")
-    explanation: Optional[str] = Field(None, description="解析")
-    category_id: Optional[str] = Field(None, description="分类 ID")
+    answer: Optional[str] = Field(None, min_length=1, max_length=1000, description="正确答案")
+    explanation: Optional[str] = Field(None, max_length=5000, description="解析")
+    category_id: Optional[str] = Field(None, max_length=100, description="分类 ID")
     tags: Optional[List[str]] = Field(None, description="标签列表")
     status: Optional[str] = Field(None, description="状态：pending|approved|rejected")
 
@@ -202,7 +202,7 @@ class StagingQuestion(StagingQuestionBase):
 
 class BatchExtractRequest(BaseModel):
     """批量提取请求模型"""
-    file_paths: List[str] = Field(..., description="文件路径列表")
+    file_paths: List[str] = Field(..., max_items=50, description="文件路径列表（最多 50 个）")
     source_type: str = Field(..., description="来源类型：image|document")
 
 
@@ -219,10 +219,10 @@ class ExtractResponse(BaseModel):
 
 class ExplanationGenerateRequest(BaseModel):
     """解析生成请求模型"""
-    question_id: Optional[str] = Field(None, description="题目 ID（从题库读取）")
-    content: Optional[str] = Field(None, description="题干内容（直接传入）")
+    question_id: Optional[str] = Field(None, max_length=100, description="题目 ID（从题库读取）")
+    content: Optional[str] = Field(None, max_length=10000, description="题干内容（直接传入）")
     options: Optional[List[str]] = Field(None, description="选项列表")
-    answer: Optional[str] = Field(None, description="正确答案")
+    answer: Optional[str] = Field(None, max_length=1000, description="正确答案")
     type: Optional[str] = Field(None, description="题型")
 
 
@@ -235,9 +235,9 @@ class ExplanationGenerateResponse(BaseModel):
 
 class QAAskRequest(BaseModel):
     """智能问答请求模型"""
-    question: str = Field(..., min_length=1, description="用户问题")
-    category_id: Optional[str] = Field(None, description="限定分类")
-    top_k: int = Field(default=5, description="返回相关题目数量")
+    question: str = Field(..., min_length=1, max_length=2000, description="用户问题")
+    category_id: Optional[str] = Field(None, max_length=100, description="限定分类")
+    top_k: int = Field(default=5, ge=1, le=100, description="返回相关题目数量")
 
 
 class QAAskResponse(BaseModel):

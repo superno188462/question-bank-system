@@ -175,6 +175,48 @@ class CategoryRepository(Repository[Category, str]):
             )
             for row in rows
         ]
+    
+    def get_children(self, parent_id: str) -> List[Category]:
+        """获取指定父分类的直接子分类"""
+        sql = "SELECT * FROM categories WHERE parent_id = ? ORDER BY created_at ASC"
+        rows = db.fetch_all(sql, (parent_id,))
+        
+        if not rows:
+            return []
+        
+        return [
+            Category(
+                id=row['id'],
+                name=row['name'],
+                description=row['description'],
+                parent_id=row['parent_id'],
+                created_at=datetime.fromisoformat(row['created_at']),
+                updated_at=datetime.fromisoformat(row['updated_at'])
+            )
+            for row in rows
+        ]
+    
+    def get_tree(self) -> List[Dict[str, Any]]:
+        """获取完整的分类树形结构"""
+        categories = self.get_all()
+        return self._build_tree(categories, None)
+    
+    def _build_tree(self, categories: List[Category], parent_id: Optional[str]) -> List[Dict[str, Any]]:
+        """递归构建分类树"""
+        tree = []
+        for cat in categories:
+            if cat.parent_id == parent_id:
+                node = {
+                    "id": cat.id,
+                    "name": cat.name,
+                    "description": cat.description,
+                    "parent_id": cat.parent_id,
+                    "created_at": cat.created_at.isoformat() if cat.created_at else None,
+                    "updated_at": cat.updated_at.isoformat() if cat.updated_at else None,
+                    "children": self._build_tree(categories, cat.id)
+                }
+                tree.append(node)
+        return tree
 
 
 class TagRepository(Repository[Tag, str]):
@@ -231,8 +273,55 @@ class TagRepository(Repository[Tag, str]):
         ]
     
     def update(self, tag_id: str, update_data: Any) -> Optional[Tag]:
-        """标签暂不支持更新，直接返回原标签"""
+        """更新标签信息"""
+        # 检查标签是否存在
+        existing_tag = self.get_by_id(tag_id)
+        if not existing_tag:
+            return None
+        
+        # 构建更新字段
+        updates = []
+        params = []
+        
+        if hasattr(update_data, 'name') and update_data.name is not None:
+            updates.append("name = ?")
+            params.append(update_data.name)
+        
+        if hasattr(update_data, 'color') and update_data.color is not None:
+            updates.append("color = ?")
+            params.append(update_data.color)
+        
+        if not updates:
+            return existing_tag
+        
+        params.append(tag_id)
+        
+        sql = f"UPDATE tags SET {', '.join(updates)} WHERE id = ?"
+        
+        with transaction():
+            db.execute(sql, tuple(params))
+        
         return self.get_by_id(tag_id)
+    
+    def get_by_names(self, names: List[str]) -> List[Tag]:
+        """通过名称列表获取标签"""
+        if not names:
+            return []
+        
+        # 使用参数化查询防止 SQL 注入
+        placeholders = ', '.join(['?' for _ in names])
+        sql = f"SELECT * FROM tags WHERE name IN ({placeholders})"
+        rows = db.fetch_all(sql, tuple(names))
+        
+        return [
+            Tag(
+                id=row['id'],
+                name=row['name'],
+                color=row['color'],
+                created_at=datetime.fromisoformat(row['created_at'])
+            )
+            for row in rows
+        ]
     
     def delete(self, tag_id: str) -> bool:
         """删除标签"""

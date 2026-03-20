@@ -1,17 +1,21 @@
+# AI Agent 配置示例
+# 复制此文件为 agent.json 并填入真实的 API Key
+# 支持 OpenAI 兼容 API（千问、DeepSeek、GPT 等）
+
 {
   "llm": {
     "model_id": "qwen-plus",
-    "api_key": "your_api_key_here",
+    "api_key": "YOUR_LLM_API_KEY_HERE",
     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
   },
   "vision": {
     "model_id": "qwen-vl-max",
-    "api_key": "your_api_key_here",
+    "api_key": "YOUR_VISION_API_KEY_HERE",
     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
   },
   "embedding": {
     "model_name": "text-embedding-v3",
-    "api_key": "your_api_key_here",
+    "api_key": "YOUR_EMBEDDING_API_KEY_HERE",
     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
   },
   "settings": {
@@ -22,7 +26,19 @@
     "http_proxy": null
   },
   "allowed_extensions": {
-    "images": ["png", "jpg", "jpeg", "gif", "webp"],
-    "documents": ["pdf", "doc", "docx", "txt", "md"]
+    "images": [
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp"
+    ],
+    "documents": [
+      "pdf",
+      "doc",
+      "docx",
+      "txt",
+      "md"
+    ]
   }
 }

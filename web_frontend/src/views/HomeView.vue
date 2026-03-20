@@ -3,7 +3,7 @@
     <!-- 顶部导航栏 -->
     <el-header class="header">
       <div class="header-left">
-        <h1 class="logo">📚 题库管理系统</h1>
+        <h1 class="logo">📚 {{ t('nav.title') }}</h1>
       </div>
       <div class="header-right">
         <el-menu
@@ -14,22 +14,24 @@
         >
           <el-menu-item index="/categories">
             <el-icon><Folder /></el-icon>
-            <span>分类管理</span>
+            <span>{{ t('nav.categories') }}</span>
           </el-menu-item>
           <el-menu-item index="/questions">
             <el-icon><Document /></el-icon>
-            <span>题目管理</span>
+            <span>{{ t('nav.questions') }}</span>
           </el-menu-item>
           <el-menu-item index="/ai-ask">
             <el-icon><ChatDotRound /></el-icon>
-            <span>AI提问</span>
+            <span>{{ t('nav.aiAsk') }}</span>
           </el-menu-item>
           <el-menu-item index="/pending-questions">
             <el-icon><Clock /></el-icon>
-            <span>预备题目</span>
+            <span>{{ t('nav.pendingQuestions') }}</span>
             <el-badge v-if="pendingCount > 0" :value="pendingCount" class="badge" />
           </el-menu-item>
         </el-menu>
+        <!-- 语言切换器 -->
+        <LanguageSwitcher @language-change="handleLanguageChange" />
       </div>
     </el-header>
 
@@ -38,14 +40,14 @@
       <!-- 侧边栏 - 分类树 -->
       <el-aside class="sidebar" width="280px">
         <div class="sidebar-header">
-          <h3><el-icon><FolderOpened /></el-icon> 分类目录</h3>
+          <h3><el-icon><FolderOpened /></el-icon> {{ t('nav.categoryDirectory') }}</h3>
           <el-button 
             type="primary" 
             size="small" 
             @click="handleAddCategory"
             class="add-category-btn"
           >
-            <el-icon><Plus /></el-icon> 添加分类
+            <el-icon><Plus /></el-icon> {{ t('nav.addCategory') }}
           </el-button>
         </div>
         <div class="category-tree">
@@ -86,7 +88,7 @@
     <!-- 添加分类对话框 -->
     <el-dialog
       v-model="categoryDialogVisible"
-      title="添加分类"
+      :title="t('category.addCategory')"
       width="500px"
     >
       <CategoryForm
@@ -100,7 +102,7 @@
     <!-- 编辑分类对话框 -->
     <el-dialog
       v-model="editCategoryDialogVisible"
-      title="编辑分类"
+      :title="t('category.editCategory')"
       width="500px"
     >
       <CategoryForm
@@ -116,13 +118,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useCategoryStore } from '@/stores/category'
 import { useQuestionStore } from '@/stores/question'
 import CategoryTree from '@/components/CategoryTree.vue'
 import CategoryForm from '@/components/CategoryForm.vue'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const categoryStore = useCategoryStore()
 const questionStore = useQuestionStore()
 
@@ -187,17 +193,17 @@ const handleCategoryEdit = (category: any) => {
 const handleCategoryDelete = async (category: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定要删除分类 "${category.name}" 吗？此操作将删除所有子分类和题目。`,
-      '警告',
+      t('category.confirmDelete', { name: category.name }),
+      t('common.warning'),
       {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning'
       }
     )
     
     await categoryStore.deleteCategory(category.id)
-    ElMessage.success('删除成功')
+    ElMessage.success(t('category.deleteSuccess'))
   } catch (error) {
     // 用户取消删除
   }
@@ -208,9 +214,9 @@ const handleCategorySubmit = async (data: any) => {
   try {
     await categoryStore.createCategory(data)
     categoryDialogVisible.value = false
-    ElMessage.success('添加成功')
+    ElMessage.success(t('category.addSuccess'))
   } catch (error) {
-    // 错误已在store中处理
+    // 错误已在 store 中处理
   }
 }
 
@@ -219,10 +225,17 @@ const handleCategoryUpdate = async (data: any) => {
   try {
     await categoryStore.updateCategory(editingCategory.value.id, data)
     editCategoryDialogVisible.value = false
-    ElMessage.success('更新成功')
+    ElMessage.success(t('category.updateSuccess'))
   } catch (error) {
-    // 错误已在store中处理
+    // 错误已在 store 中处理
   }
+}
+
+// 语言切换
+const handleLanguageChange = (langCode: string) => {
+  // 语言切换后，vue-i18n 会自动重新渲染所有使用 t() 的组件
+  // 这里可以添加其他需要随语言切换而更新的业务逻辑
+  ElMessage.success(t('language.switched', { lang: langCode === 'zh-CN' ? '中文' : 'English' }))
 }
 
 // 监听路由变化，更新面包屑
@@ -252,6 +265,12 @@ watch(() => route.query.category_id, () => {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .nav-menu {
